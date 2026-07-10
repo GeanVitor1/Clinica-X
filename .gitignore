@@ -1,0 +1,12 @@
+node_modules/
+dist/
+bin/
+obj/
+*.log
+.env
+.DS_Store
+Thumbs.db
+.vs/
+*.suo
+*.user
+*.userprefs

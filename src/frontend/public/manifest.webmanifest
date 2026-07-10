@@ -1,0 +1,12 @@
+{
+  "name": "ClinicaX",
+  "short_name": "ClinicaX",
+  "description": "Sistema de Gestão Inteligente para Clínicas",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#14b8a6",
+  "icons": [
+    { "src": "favicon.ico", "sizes": "48x48", "type": "image/x-icon" }
+  ]
+}

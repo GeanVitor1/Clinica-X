@@ -1,0 +1,9 @@
+<Solution>
+  <Project Path="ClinicaX.API/ClinicaX.API.csproj" />
+  <Project Path="ClinicaX.Application/ClinicaX.Application.csproj" />
+  <Project Path="ClinicaX.Domain/ClinicaX.Domain.csproj" />
+  <Project Path="ClinicaX.Identity/ClinicaX.Identity.csproj" />
+  <Project Path="ClinicaX.Infrastructure/ClinicaX.Infrastructure.csproj" />
+  <Project Path="ClinicaX.Persistence/ClinicaX.Persistence.csproj" />
+  <Project Path="ClinicaX.Tests/ClinicaX.Tests.csproj" />
+</Solution>
