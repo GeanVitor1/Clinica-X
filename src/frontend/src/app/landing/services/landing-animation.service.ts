@@ -37,5 +37,8 @@ export class LandingAnimationService {
     const current = html.getAttribute('data-theme');
     const next = current === 'dark' ? 'light' : 'dark';
     this.renderer.setAttribute(html, 'data-theme', next);
+    try {
+      localStorage.setItem('clx-theme', next);
+    } catch {}
   }
 }

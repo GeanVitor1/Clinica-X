@@ -38,14 +38,37 @@ import { AuthService } from '../../services/auth.service';
     </div>
   `,
   styles: [`
-    .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--clx-bg); padding: 24px; }
-    .card { width: 100%; max-width: 420px; padding: 48px 40px; background: var(--clx-bg); border-radius: 24px; box-shadow: var(--clx-shadow-hover); border: 1px solid var(--clx-border); }
+    .auth-page {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--clx-page-bg);
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 420px;
+      padding: 48px 40px;
+      background: var(--clx-card-bg);
+      border-radius: 18px;
+      box-shadow: var(--clx-shadow-card);
+      border: 1px solid var(--clx-border);
+    }
     h1 { font-size: 1.5rem; margin: 0 0 8px; color: var(--clx-text); font-weight: 700; letter-spacing: -0.02em; }
     .subtitle { color: var(--clx-text-muted); font-size: 0.9rem; margin-bottom: 28px; word-break: break-all; }
     .form { display: flex; flex-direction: column; gap: 20px; }
     .field { display: flex; flex-direction: column; gap: 6px; }
     .field label { font-size: 0.82rem; font-weight: 600; color: var(--clx-text); }
-    .field input { padding: 12px 16px; border: 1.5px solid var(--clx-border); border-radius: var(--clx-radius-sm); background: var(--clx-bg); color: var(--clx-text); outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    .field input {
+      padding: 12px 16px;
+      border: 1.5px solid var(--clx-border);
+      border-radius: var(--clx-radius-sm);
+      background: color-mix(in srgb, var(--clx-card-bg-solid) 85%, #fff);
+      color: var(--clx-text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
     .field input:focus { border-color: var(--clx-accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
     .btn-primary { padding: 14px; background: var(--clx-accent); color: #fff; border: none; border-radius: var(--clx-radius-sm); font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.92rem; }
     .btn-primary:hover:not(:disabled) { background: var(--clx-accent-light); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(37, 99, 235, 0.25); }

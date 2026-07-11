@@ -135,7 +135,7 @@ import { AuthService } from '../../services/auth.service';
       width: 100vw;
       height: 100vh;
       overflow: hidden;
-      background: var(--clx-surface-0);
+      background: var(--clx-page-bg);
     }
 
     .login-grid {
@@ -155,15 +155,15 @@ import { AuthService } from '../../services/auth.service';
     .hero-bg {
       position: absolute;
       inset: 0;
-      background: linear-gradient(160deg, #0a0a1a 0%, #0f0f2e 40%, #1a1035 100%);
+      background: linear-gradient(160deg, #0a162e 0%, #122445 40%, #1a3570 100%);
     }
 
     .hero-grid-pattern {
       position: absolute;
       inset: 0;
       background-image:
-        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+        linear-gradient(rgba(147, 197, 253, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(147, 197, 253, 0.05) 1px, transparent 1px);
       background-size: 60px 60px;
       mask-image: radial-gradient(ellipse at 60% 50%, black 30%, transparent 70%);
     }
@@ -177,19 +177,19 @@ import { AuthService } from '../../services/auth.service';
 
     .hero-orb--1 {
       width: 500px; height: 500px;
-      background: radial-gradient(circle, rgba(59, 130, 246, 0.18), transparent);
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.22), transparent);
       top: -10%; right: -5%;
     }
 
     .hero-orb--2 {
       width: 350px; height: 350px;
-      background: radial-gradient(circle, rgba(139, 92, 246, 0.12), transparent);
+      background: radial-gradient(circle, rgba(109, 90, 240, 0.14), transparent);
       bottom: -5%; left: 10%;
     }
 
     .hero-orb--3 {
       width: 280px; height: 280px;
-      background: radial-gradient(circle, rgba(6, 182, 212, 0.08), transparent);
+      background: radial-gradient(circle, rgba(96, 165, 250, 0.12), transparent);
       top: 40%; left: 0;
     }
 
@@ -198,6 +198,8 @@ import { AuthService } from '../../services/auth.service';
       z-index: 1;
       padding: 64px 56px;
       max-width: 540px;
+      /* Explicit light text on dark blue hero — not theme tokens */
+      color: #f0f4fc;
     }
 
     .hero-badge {
@@ -205,21 +207,21 @@ import { AuthService } from '../../services/auth.service';
       align-items: center;
       gap: 6px;
       padding: 5px 12px;
-      border-radius: var(--clx-radius-full);
-      background: rgba(59, 130, 246, 0.1);
-      border: 1px solid rgba(59, 130, 246, 0.15);
-      color: var(--clx-accent);
+      border-radius: 8px;
+      background: rgba(147, 197, 253, 0.14);
+      border: 1px solid rgba(147, 197, 253, 0.28);
+      color: #bfdbfe;
       font-size: 0.72rem;
       font-weight: 600;
       margin-bottom: 32px;
     }
 
-    .hero-badge svg { flex-shrink: 0; }
+    .hero-badge svg { flex-shrink: 0; color: #93c5fd; }
 
     .hero-title {
       font-size: clamp(2rem, 3.2vw, 2.6rem);
       font-weight: 800;
-      color: var(--clx-text-primary);
+      color: #ffffff;
       letter-spacing: -0.03em;
       line-height: 1.12;
       margin-bottom: 16px;
@@ -228,7 +230,7 @@ import { AuthService } from '../../services/auth.service';
     .hero-subtitle {
       font-size: 0.95rem;
       line-height: 1.65;
-      color: var(--clx-text-secondary);
+      color: rgba(226, 236, 252, 0.82);
       margin-bottom: 40px;
     }
 
@@ -247,25 +249,25 @@ import { AuthService } from '../../services/auth.service';
     .stat-value {
       font-size: 1.3rem;
       font-weight: 800;
-      color: var(--clx-text-primary);
+      color: #ffffff;
     }
 
     .stat-label {
       font-size: 0.7rem;
-      color: var(--clx-text-tertiary);
+      color: rgba(191, 219, 254, 0.75);
       text-transform: uppercase;
       letter-spacing: 0.04em;
       font-weight: 500;
     }
 
     .hero-quote {
-      border-left: 2px solid rgba(59, 130, 246, 0.3);
+      border-left: 2px solid rgba(147, 197, 253, 0.45);
       padding-left: 16px;
     }
 
     .hero-quote p {
       font-size: 0.82rem;
-      color: var(--clx-text-secondary);
+      color: rgba(226, 236, 252, 0.88);
       font-style: italic;
       line-height: 1.6;
       margin-bottom: 8px;
@@ -273,7 +275,7 @@ import { AuthService } from '../../services/auth.service';
 
     .quote-author {
       font-size: 0.7rem;
-      color: var(--clx-text-tertiary);
+      color: rgba(191, 219, 254, 0.7);
       font-weight: 500;
     }
 
@@ -283,7 +285,14 @@ import { AuthService } from '../../services/auth.service';
       align-items: center;
       justify-content: center;
       padding: 48px;
-      background: var(--clx-surface-1);
+      background:
+        radial-gradient(ellipse 80% 60% at 80% 20%, rgba(40, 80, 160, 0.1), transparent 50%),
+        linear-gradient(165deg, #c5d4e8 0%, #b2c4de 100%);
+    }
+    [data-theme='dark'] .login-panel {
+      background:
+        radial-gradient(ellipse 80% 60% at 80% 20%, rgba(59, 110, 245, 0.12), transparent 50%),
+        linear-gradient(165deg, #152a4d 0%, #122445 100%);
     }
 
     .login-panel-wrap {
@@ -360,13 +369,14 @@ import { AuthService } from '../../services/auth.service';
     .field input {
       width: 100%;
       padding: 11px 14px 11px 40px;
-      border: 1px solid var(--clx-border-strong);
+      border: 1px solid var(--clx-border);
       border-radius: var(--clx-radius-md);
-      background: var(--clx-surface-2);
+      background: color-mix(in srgb, var(--clx-card-bg-solid) 90%, #fff);
       color: var(--clx-text-primary);
       font-size: 0.9rem;
       font-family: var(--clx-font);
       outline: none;
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.25) inset;
       transition: all var(--clx-transition-base);
     }
 

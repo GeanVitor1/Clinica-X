@@ -11,9 +11,9 @@ import { MagneticDirective } from '../../directives/magnetic.directive';
       <div class="cta-bg-image"></div>
       <div class="cta-overlay"></div>
       <div class="cta-content">
-        <span class="cta-badge">VAMOS COMEÇAR?</span>
-        <h2>Um login com todas as ferramentas que você precisa!</h2>
-        <p>Confira na prática como o ClinicaX pode automatizar a sua gestão e impulsionar os resultados do seu negócio.</p>
+        <span class="section-label">Próximo passo</span>
+        <h2>Um login. Toda a operação da clínica.</h2>
+        <p>Automatize agenda, digitalize processos e tenha previsibilidade de faturamento — sem planilhas soltas.</p>
         <div class="cta-buttons">
           <a routerLink="/auth/login" appMagnetic class="cta-btn cta-btn--primary">
             Criar conta grátis
@@ -30,7 +30,14 @@ import { MagneticDirective } from '../../directives/magnetic.directive';
     .cta-section {
       position: relative;
       padding: 120px 24px;
-      background: #0f0f23;
+      background:
+        linear-gradient(
+          155deg,
+          #0c1c42 0%,
+          #15306a 35%,
+          #1e4a9e 65%,
+          #122a5c 100%
+        );
       text-align: center;
       overflow: hidden;
     }
@@ -56,17 +63,14 @@ import { MagneticDirective } from '../../directives/magnetic.directive';
       max-width: 600px;
       margin: 0 auto;
     }
-    .cta-badge {
+    .section-label {
       display: inline-block;
-      padding: 6px 16px;
-      border-radius: 100px;
-      background: rgba(37, 99, 235, 0.1);
-      border: 1px solid rgba(37, 99, 235, 0.1);
-      color: var(--clx-accent-light);
       font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      margin-bottom: 20px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8babff;
+      margin-bottom: 16px;
     }
     .cta-content h2 {
       font-size: clamp(1.6rem, 3vw, 2.2rem);
@@ -91,29 +95,39 @@ import { MagneticDirective } from '../../directives/magnetic.directive';
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 14px 32px;
-      border-radius: 50px;
+      padding: 13px 24px;
+      border-radius: 12px;
       font-size: 0.92rem;
       font-weight: 600;
       text-decoration: none;
-      transition: all 0.25s;
+      transition:
+        transform 220ms cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 220ms ease,
+        background 220ms ease,
+        border-color 220ms ease;
     }
     .cta-btn--primary {
-      background: linear-gradient(135deg, var(--clx-accent), var(--clx-purple));
+      background: var(--clx-accent);
       color: #fff;
-      box-shadow: 0 4px 24px rgba(37, 99, 235, 0.3);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.12) inset,
+        0 6px 22px rgba(59, 110, 245, 0.32);
+      border-radius: 14px;
     }
     .cta-btn--primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 36px rgba(37, 99, 235, 0.4);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.14) inset,
+        0 10px 32px rgba(59, 110, 245, 0.4);
     }
     .cta-btn--outline {
-      background: rgba(250, 250, 249, 0.06);
-      border: 1.5px solid rgba(250, 250, 249, 0.12);
-      color: #fafaf9;
+      background: rgba(240, 242, 247, 0.05);
+      border: 1px solid rgba(240, 242, 247, 0.12);
+      color: #f0f2f7;
     }
     .cta-btn--outline:hover {
-      background: rgba(250, 250, 249, 0.1);
+      background: rgba(240, 242, 247, 0.09);
+      border-color: rgba(240, 242, 247, 0.2);
     }
     .cta-btn svg { transition: transform 0.2s; }
     .cta-btn--primary:hover svg { transform: translateX(4px); }

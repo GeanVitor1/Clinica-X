@@ -16,11 +16,15 @@ interface Message {
       <div class="wa-header">
         <div class="wa-header-left">
           <div class="wa-avatar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+              <circle cx="16" cy="16" r="14" fill="#25D366"/>
+              <path fill="#fff" d="M22.4 18.9c-.25-.12-1.48-.73-1.7-.81-.23-.09-.4-.12-.56.12-.17.25-.64.81-.79 1-.14.17-.29.19-.54.07-1.48-.74-2.45-1.33-3.43-3.01-.18-.31.18-.29.63-1.18.07-.14.04-.27-.02-.38-.06-.12-.56-1.35-.77-1.85-.2-.48-.41-.42-.56-.42h-.53c-.18 0-.47.07-.72.34-.24.27-.94.92-.94 2.24s.96 2.6 1.1 2.78c.13.17 1.88 2.87 4.56 4.02 1.7.68 2.36.73 3.21.62.49-.07 1.5-.61 1.71-1.2.21-.59.21-1.1.15-1.2-.06-.1-.23-.16-.48-.28z"/>
+              <path fill="#fff" d="M16 6.2a9.8 9.8 0 0 0-8.4 14.8l-.9 3.3 3.4-.9A9.8 9.8 0 1 0 16 6.2zm0 17.7c-1.55 0-3-.42-4.25-1.15l-.3-.18-2.95.77.79-2.88-.2-.3A8.05 8.05 0 0 1 7.95 16 8.05 8.05 0 0 1 16 7.95 8.05 8.05 0 0 1 24.05 16 8.05 8.05 0 0 1 16 23.9z"/>
+            </svg>
           </div>
           <div class="wa-header-info">
             <strong>Assistente ClinicaX</strong>
-            <small>online</small>
+            <small>online · WhatsApp Business</small>
           </div>
         </div>
         <div class="wa-header-actions">
@@ -89,10 +93,12 @@ interface Message {
     .wa-avatar {
       width: 38px; height: 38px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.08);
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.12);
     }
     .wa-header-info strong { display: block; font-size: 0.85rem; }
     .wa-header-info small { font-size: 0.65rem; opacity: 0.7; }

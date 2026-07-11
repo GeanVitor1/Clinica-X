@@ -133,10 +133,7 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
       position: fixed;
       inset: 0;
       z-index: -1;
-      background: linear-gradient(135deg, var(--clx-primary), var(--clx-accent));
-      background-size: 200% 200%;
-      animation: gradientShift 30s ease infinite;
-      opacity: 0.03;
+      background: var(--clx-bg-mesh);
       pointer-events: none;
     }
     @keyframes gradientShift {
@@ -176,7 +173,7 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
 
     .dash-bell {
       position: relative;
-      background: var(--clx-bg);
+      background: var(--clx-card-bg);
       border: 1px solid var(--clx-border);
       border-radius: var(--clx-radius-md);
       width: 40px;
@@ -186,6 +183,7 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
       align-items: center;
       justify-content: center;
       color: var(--clx-text-muted);
+      box-shadow: var(--clx-shadow-xs);
       transition: all var(--clx-transition-fast);
     }
 
@@ -221,24 +219,28 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
     }
 
     .kpi {
-      background: var(--clx-bg);
+      background: var(--clx-card-bg);
       border: 1px solid var(--clx-border);
       border-radius: var(--clx-radius);
       padding: 20px;
+      box-shadow: var(--clx-shadow-card);
       transition: all var(--clx-transition-base);
       position: relative;
       overflow: hidden;
     }
 
     .kpi:hover {
-      border-color: var(--clx-border-strong);
-      box-shadow: var(--clx-shadow-md);
-      transform: translateY(-1px);
+      border-color: color-mix(in srgb, var(--clx-accent) 30%, var(--clx-border));
+      box-shadow: var(--clx-shadow-card-hover);
+      transform: translateY(-2px);
     }
 
     .kpi--featured {
-      background: linear-gradient(145deg, var(--clx-primary), var(--clx-primary-light));
-      border-color: rgba(59, 130, 246, 0.12);
+      background: linear-gradient(145deg, #1a3570 0%, #122445 55%, #0f2145 100%);
+      border-color: rgba(96, 165, 250, 0.22);
+      box-shadow:
+        0 0 0 1px rgba(147, 197, 253, 0.08) inset,
+        0 12px 32px rgba(15, 40, 90, 0.25);
     }
 
     .kpi-top { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
@@ -288,14 +290,18 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
     .dash-bottom-grid { display: grid; grid-template-columns: 5fr 4fr; gap: 16px; }
 
     .panel {
-      background: var(--clx-bg);
+      background: var(--clx-card-bg);
       border: 1px solid var(--clx-border);
       border-radius: var(--clx-radius);
       padding: 24px;
-      transition: box-shadow var(--clx-transition-base);
+      box-shadow: var(--clx-shadow-card);
+      transition: box-shadow var(--clx-transition-base), transform var(--clx-transition-base);
     }
 
-    .panel:hover { box-shadow: var(--clx-shadow-md); }
+    .panel:hover {
+      box-shadow: var(--clx-shadow-card-hover);
+      transform: translateY(-1px);
+    }
 
     .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
 

@@ -68,17 +68,21 @@ import { PacienteService, Paciente, Evento } from '../../services/paciente.servi
                       <p><strong>Telefone:</strong> {{ p.telefone }}</p>
                       <p><strong>Obs:</strong> {{ p.observacoes || '—' }}</p>
                       <p><em>Último agendamento: {{ p.ultimoAgendamentoInfo || 'Nenhum' }}</em></p>
-                      <button class="btn-sm" type="button" [routerLink]="'/agenda'">Agendar</button>
+                      <div class="expand-actions">
+                        <button class="btn-sm" type="button" [routerLink]="'/agenda'">Agendar</button>
+                        <button class="btn-sm btn-sm--accent" type="button" [routerLink]="['/prontuario', p.id]">Prontuário</button>
+                      </div>
                     </div>
                   }
                 </td>
                 <td>{{ formatCpf(p.cpf) }}</td>
                 <td>{{ p.telefone }}</td>
                 <td>{{ p.dataNascimento ? (p.dataNascimento | date:'dd/MM/yyyy') : '—' }}</td>
-                <td>
-                  <button class="btn-icon" type="button" (click)="editPaciente(p)">✏️</button>
-                  <button class="btn-icon" type="button" (click)="verHistorico(p)">📋</button>
-                  <button class="btn-icon" type="button" (click)="deletePaciente(p)">🗑️</button>
+                <td class="actions-cell">
+                  <button class="btn-icon" type="button" (click)="editPaciente(p)" title="Editar">✏️</button>
+                  <a class="btn-icon" [routerLink]="['/prontuario', p.id]" title="Prontuário digital">🩺</a>
+                  <button class="btn-icon" type="button" (click)="verHistorico(p)" title="Histórico">📋</button>
+                  <button class="btn-icon" type="button" (click)="deletePaciente(p)" title="Excluir">🗑️</button>
                 </td>
               </tr>
             }
@@ -193,6 +197,12 @@ import { PacienteService, Paciente, Evento } from '../../services/paciente.servi
     }
     .btn-secondary:hover { border-color: var(--clx-text-tertiary); color: var(--clx-text-primary); }
 
+    .expand-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
     .btn-sm {
       padding: 5px 12px;
       background: var(--clx-accent);
@@ -203,12 +213,25 @@ import { PacienteService, Paciente, Evento } from '../../services/paciente.servi
       cursor: pointer;
       font-family: var(--clx-font);
       font-weight: 500;
-      margin-top: 8px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+    }
+    .btn-sm--accent {
+      background: #0d9488;
+    }
+    .actions-cell {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      white-space: nowrap;
     }
 
     .btn-icon {
       background: none;
       border: none;
+      text-decoration: none;
+      cursor: pointer;
       cursor: pointer;
       font-size: 0.95rem;
       padding: 6px;

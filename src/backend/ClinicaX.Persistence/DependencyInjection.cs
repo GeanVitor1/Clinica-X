@@ -20,10 +20,12 @@ public static class DependencyInjection
 
         services.AddIdentity<ClinicaOwner, IdentityRole>(options =>
         {
+            // Demo credentials use a short PIN-style password (1234)
             options.Password.RequireDigit = false;
             options.Password.RequiredLength = 4;
             options.Password.RequireNonAlphanumeric = false;
             options.Password.RequireUppercase = false;
+            options.Password.RequireLowercase = false;
             options.User.RequireUniqueEmail = true;
         })
         .AddEntityFrameworkStores<ClinicaXDbContext>()

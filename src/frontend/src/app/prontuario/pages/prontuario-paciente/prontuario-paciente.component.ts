@@ -90,25 +90,49 @@ import { BtnSubmitComponent, BtnSubmitState } from '../../../shared/components/b
 
     @if (showForm) {
       <div class="modal-overlay" (click)="fecharForm()">
-        <div class="modal" (click)="$event.stopPropagation()">
-          <h2>{{ editandoId() ? 'Editar Registro' : 'Novo Registro' }}</h2>
+        <div class="modal modal--wide" (click)="$event.stopPropagation()">
+          <h2>{{ editandoId() ? 'Editar prontuário' : 'Novo registro clínico' }}</h2>
+          <p class="modal-sub">Preencha a evolução do atendimento. Os campos clínicos formam o prontuário digital do paciente.</p>
           <form (ngSubmit)="salvarRegistro()" class="prontuario-form">
-            <div class="field">
-              <label>Data *</label>
-              <input [(ngModel)]="formData" name="data" type="date" required [disabled]="!!editandoId()" />
+            <div class="field-row">
+              <div class="field">
+                <label>Data do atendimento *</label>
+                <input [(ngModel)]="formData" name="data" type="date" required [disabled]="!!editandoId()" />
+              </div>
             </div>
-            <div class="field">
-              <label>Descrição</label>
-              <textarea [(ngModel)]="formDescricao" name="descricao" rows="3"></textarea>
+
+            <div class="form-section">
+              <h3>Anamnese e exame</h3>
+              <div class="field">
+                <label>Queixa principal</label>
+                <input [(ngModel)]="formQueixa" name="queixa" placeholder="Ex.: dor ao mastigar no dente 16" />
+              </div>
+              <div class="field">
+                <label>História da doença atual (HDA)</label>
+                <textarea [(ngModel)]="formHda" name="hda" rows="2" placeholder="Início, evolução, sintomas associados..."></textarea>
+              </div>
+              <div class="field">
+                <label>Exame clínico / radiográfico</label>
+                <textarea [(ngModel)]="formExame" name="exame" rows="2" placeholder="Achados clínicos, testes de vitalidade, imagem..."></textarea>
+              </div>
+              <div class="field">
+                <label>Observações adicionais</label>
+                <textarea [(ngModel)]="formObs" name="obs" rows="2" placeholder="Alergias, intercorrências, orientações verbais..."></textarea>
+              </div>
             </div>
-            <div class="field">
-              <label>Diagnóstico</label>
-              <textarea [(ngModel)]="formDiagnostico" name="diagnostico" rows="2"></textarea>
+
+            <div class="form-section">
+              <h3>Diagnóstico e conduta</h3>
+              <div class="field">
+                <label>Diagnóstico / CID clínico</label>
+                <textarea [(ngModel)]="formDiagnostico" name="diagnostico" rows="2" placeholder="Hipótese diagnóstica e dentes envolvidos"></textarea>
+              </div>
+              <div class="field">
+                <label>Prescrição e plano de tratamento</label>
+                <textarea [(ngModel)]="formPrescricao" name="prescricao" rows="3" placeholder="Medicamentos, retorno, próximos procedimentos..."></textarea>
+              </div>
             </div>
-            <div class="field">
-              <label>Prescrição</label>
-              <textarea [(ngModel)]="formPrescricao" name="prescricao" rows="2"></textarea>
-            </div>
+
             @if (!editandoId()) {
               <div class="field">
                 <label>Anexos (PDF, JPG, PNG — máx 10 MB)</label>
@@ -118,7 +142,7 @@ import { BtnSubmitComponent, BtnSubmitState } from '../../../shared/components/b
             }
             <div class="form-actions">
               <button type="button" class="btn-secondary" (click)="fecharForm()">Cancelar</button>
-              <app-btn-submit label="Salvar" [state]="saveState()" />
+              <app-btn-submit label="Salvar prontuário" [state]="saveState()" />
             </div>
           </form>
         </div>
@@ -229,7 +253,7 @@ import { BtnSubmitComponent, BtnSubmitState } from '../../../shared/components/b
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
     .modal {
-      background: var(--clx-surface-1);
+      background: var(--clx-card-bg, var(--clx-surface-1));
       border: 1px solid var(--clx-border-strong);
       border-radius: var(--clx-radius-xl);
       padding: 28px;
@@ -240,12 +264,33 @@ import { BtnSubmitComponent, BtnSubmitState } from '../../../shared/components/b
       box-shadow: var(--clx-shadow-xl);
       animation: modalIn 0.2s cubic-bezier(0.16,1,0.3,1);
     }
+    .modal--wide { max-width: 640px; }
     @keyframes modalIn { from { opacity: 0; transform: scale(0.96) translateY(8px); } to { opacity: 1; transform: scale(1) translateY(0); } }
 
-    .modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 24px; color: var(--clx-text-primary); }
+    .modal h2 { font-size: 1.15rem; font-weight: 700; margin-bottom: 6px; color: var(--clx-text-primary); }
+    .modal-sub { font-size: 0.84rem; color: var(--clx-text-secondary); margin-bottom: 20px; line-height: 1.45; }
 
     .prontuario-form { display: flex; flex-direction: column; gap: 14px; }
-    .field { display: flex; flex-direction: column; gap: 5px; }
+    .form-section {
+      padding: 14px 14px 4px;
+      border: 1px solid var(--clx-border);
+      border-radius: var(--clx-radius-md);
+      background: color-mix(in srgb, var(--clx-surface-2) 70%, transparent);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+    .form-section h3 {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--clx-accent);
+      margin: 0 0 2px;
+    }
+    .field-row { display: flex; gap: 12px; }
+    .field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
     .field label { font-size: 0.8rem; font-weight: 500; color: var(--clx-text-secondary); }
     .field input, .field textarea {
       padding: 9px 12px;
@@ -257,6 +302,7 @@ import { BtnSubmitComponent, BtnSubmitState } from '../../../shared/components/b
       font-family: var(--clx-font);
       outline: none;
       transition: all var(--clx-transition-fast);
+      resize: vertical;
     }
     .field input:focus, .field textarea:focus { border-color: var(--clx-accent); box-shadow: 0 0 0 3px var(--clx-accent-muted); }
     .field input[type="file"] { padding: 7px; }
@@ -294,7 +340,10 @@ export class ProntuarioPacienteComponent implements OnInit {
   showForm = false;
   editandoId = signal('');
   formData = '';
-  formDescricao = '';
+  formQueixa = '';
+  formHda = '';
+  formExame = '';
+  formObs = '';
   formDiagnostico = '';
   formPrescricao = '';
   selectedFiles: File[] = [];
@@ -349,11 +398,43 @@ export class ProntuarioPacienteComponent implements OnInit {
   private limparForm() {
     this.editandoId.set('');
     this.formData = new Date().toISOString().split('T')[0];
-    this.formDescricao = '';
+    this.formQueixa = '';
+    this.formHda = '';
+    this.formExame = '';
+    this.formObs = '';
     this.formDiagnostico = '';
     this.formPrescricao = '';
     this.selectedFiles = [];
     this.uploadError.set('');
+  }
+
+  /** Monta o campo Descrição a partir dos blocos clínicos. */
+  private montarDescricao(): string {
+    const parts: string[] = [];
+    if (this.formQueixa.trim()) parts.push(`Queixa principal: ${this.formQueixa.trim()}`);
+    if (this.formHda.trim()) parts.push(`História da doença atual: ${this.formHda.trim()}`);
+    if (this.formExame.trim()) parts.push(`Exame clínico / radiográfico: ${this.formExame.trim()}`);
+    if (this.formObs.trim()) parts.push(`Observações: ${this.formObs.trim()}`);
+    return parts.join('\n\n');
+  }
+
+  private preencherCamposDaDescricao(descricao: string) {
+    this.formQueixa = '';
+    this.formHda = '';
+    this.formExame = '';
+    this.formObs = '';
+    if (!descricao) return;
+
+    const blocks = descricao.split(/\n\n+/);
+    for (const b of blocks) {
+      const t = b.trim();
+      if (/^queixa/i.test(t)) this.formQueixa = t.replace(/^queixa principal:\s*/i, '');
+      else if (/^hist[oó]ria/i.test(t)) this.formHda = t.replace(/^hist[oó]ria da doença atual:\s*/i, '');
+      else if (/^exame/i.test(t)) this.formExame = t.replace(/^exame clínico\s*\/\s*radiogr[aá]fico:\s*/i, '');
+      else if (/^observa/i.test(t)) this.formObs = t.replace(/^observa[cç][oõ]es:\s*/i, '');
+      else if (!this.formQueixa) this.formQueixa = t;
+      else this.formObs = [this.formObs, t].filter(Boolean).join('\n');
+    }
   }
 
   abrirNovoRegistro() {
@@ -364,7 +445,7 @@ export class ProntuarioPacienteComponent implements OnInit {
   editarRegistro(item: Prontuario) {
     this.editandoId.set(item.id);
     this.formData = item.data ? item.data.split('T')[0] : '';
-    this.formDescricao = item.descricao || '';
+    this.preencherCamposDaDescricao(item.descricao || '');
     this.formDiagnostico = item.diagnostico || '';
     this.formPrescricao = item.prescricao || '';
     this.selectedFiles = [];
@@ -396,14 +477,14 @@ export class ProntuarioPacienteComponent implements OnInit {
 
     const request = {
       data: this.formData || new Date().toISOString(),
-      descricao: this.formDescricao,
+      descricao: this.montarDescricao(),
       diagnostico: this.formDiagnostico,
       prescricao: this.formPrescricao,
     };
 
     if (this.editandoId()) {
       const updateReq: UpdateProntuarioRequest = {
-        descricao: this.formDescricao,
+        descricao: this.montarDescricao(),
         diagnostico: this.formDiagnostico,
         prescricao: this.formPrescricao,
       };

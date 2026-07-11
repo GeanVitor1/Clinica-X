@@ -3,6 +3,12 @@ import { Routes } from '@angular/router';
 export default [
   {
     path: '',
-    loadComponent: () => import('./pages/agenda-view/agenda-view.component').then(m => m.AgendaViewComponent),
+    loadComponent: () =>
+      import('./pages/agenda-view/agenda-view.component').then((m) => m.AgendaViewComponent),
+  },
+  {
+    path: 'novo',
+    loadComponent: () =>
+      import('./pages/agenda-view/agenda-view.component').then((m) => m.AgendaViewComponent),
   },
 ] as Routes;

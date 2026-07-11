@@ -44,14 +44,15 @@ public class DashboardService : IDashboardService
 
     private async Task<DashboardDataDto> BuildDashboardAsync(Guid clinicaId, CancellationToken ct)
     {
-        var hoje = DateTime.UtcNow.Date;
+        // Use local calendar day so demo seed (DateTime.Today) and UI match
+        var hoje = DateTime.Today;
         var fimHoje = hoje.AddDays(1);
         var fim7dias = hoje.AddDays(7);
 
         var agendamentosHoje = await _agendamentoRepo.GetByClinicaAsync(clinicaId, hoje, fimHoje, ct);
         var agendamentos7dias = await _agendamentoRepo.GetByClinicaAsync(clinicaId, hoje, fim7dias, ct);
 
-        var inicioMes = new DateTime(hoje.Year, hoje.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+        var inicioMes = new DateTime(hoje.Year, hoje.Month, 1);
         var fimMes = inicioMes.AddMonths(1);
         var agendamentosMes = await _agendamentoRepo.GetByClinicaAsync(clinicaId, inicioMes, fimMes, ct);
 

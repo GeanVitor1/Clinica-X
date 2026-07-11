@@ -1,4 +1,5 @@
-import { Component, afterNextRender } from '@angular/core';
+import { Component, afterNextRender, inject } from '@angular/core';
+import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { AnimateOnScrollDirective } from '../../directives/animate-on-scroll.directive';
@@ -10,44 +11,25 @@ import { AnimateOnScrollDirective } from '../../directives/animate-on-scroll.dir
   template: `
     <section class="why-section">
       <div class="container">
-        <div class="section-head" appAnimateOnScroll>
-          <span class="section-badge">POR QUE ESCOLHER</span>
-          <h2>Por que escolher o ClinicaX</h2>
-          <p>Recursos, suporte e benefícios que fazem do ClinicaX a escolha certa para quem quer crescer com eficiência, segurança e autonomia.</p>
-        </div>
+        <div class="why-layout">
+          <header class="why-head" appAnimateOnScroll>
+            <span class="section-label">Diferenciais</span>
+            <h2>Feito para quem opera clínica de verdade</h2>
+            <p>
+              Não é mais um software genérico. É uma operação completa com implantação,
+              suporte humano e evolução contínua baseada no dia a dia da clínica.
+            </p>
+          </header>
 
-        <div class="why-grid" #gridRef>
-          <div class="why-card">
-            <div class="why-num">
-              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-graduation"/></svg>
-            </div>
-            <h4>Treinamento semanal</h4>
-            <p>Demonstrações práticas com passo a passo e esclarecimento de dúvidas em tempo real.</p>
-            <div class="why-glow"></div>
-          </div>
-          <div class="why-card">
-            <div class="why-num">
-              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-refresh"/></svg>
-            </div>
-            <h4>Atualizações e feedbacks</h4>
-            <p>Funcionalidades pensadas de acordo com a realidade de quem usa o sistema no dia a dia.</p>
-            <div class="why-glow"></div>
-          </div>
-          <div class="why-card">
-            <div class="why-num">
-              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-migrate"/></svg>
-            </div>
-            <h4>Migração de dados facilitada</h4>
-            <p>Migre sem medo: contamos com migradores dos principais sistemas do mercado.</p>
-            <div class="why-glow"></div>
-          </div>
-          <div class="why-card">
-            <div class="why-num">
-              <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8"><use href="#ic-headphones"/></svg>
-            </div>
-            <h4>Suporte especializado</h4>
-            <p>Nosso atendimento é humanizado, de pessoas para pessoas. Suporte real quando você precisa.</p>
-            <div class="why-glow"></div>
+          <div class="why-grid">
+            @for (item of items; track item.title; let i = $index) {
+              <article class="why-card" [style.--accent]="item.accent">
+                <div class="why-index">0{{ i + 1 }}</div>
+                <div class="why-icon" [innerHTML]="item.icon"></div>
+                <h4>{{ item.title }}</h4>
+                <p>{{ item.text }}</p>
+              </article>
+            }
           </div>
         </div>
       </div>
@@ -56,145 +38,183 @@ import { AnimateOnScrollDirective } from '../../directives/animate-on-scroll.dir
   styles: [`
     .why-section {
       position: relative;
-      padding: 100px 0;
-      background: var(--clx-bg-alt);
+      padding: 112px 0;
+      background: transparent;
       overflow: hidden;
     }
     .why-section::before {
       content: '';
       position: absolute;
-      top: -30%;
-      left: -10%;
-      width: 60%;
-      height: 80%;
-      background: radial-gradient(ellipse, rgba(37, 99, 235, 0.03), transparent);
+      inset: 0;
+      background:
+        radial-gradient(ellipse 50% 40% at 0% 0%, rgba(59, 110, 245, 0.05), transparent 60%),
+        radial-gradient(ellipse 40% 35% at 100% 100%, rgba(13, 148, 136, 0.04), transparent 55%);
       pointer-events: none;
     }
     .container {
       max-width: 1120px;
       margin: 0 auto;
       padding: 0 32px;
+      position: relative;
+      z-index: 1;
     }
-    .section-head {
-      text-align: center;
-      max-width: 640px;
-      margin: 0 auto 60px;
+    .why-layout {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 48px;
+      align-items: start;
     }
-    .section-badge {
+    .why-head {
+      position: sticky;
+      top: 100px;
+      max-width: 380px;
+    }
+    .section-label {
       display: inline-block;
-      padding: 6px 16px;
-      border-radius: 100px;
-      background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(124, 58, 237, 0.05));
-      color: var(--clx-accent);
       font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      margin-bottom: 16px;
-      border: 1px solid rgba(37, 99, 235, 0.1);
-    }
-    .section-head h2 {
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      font-weight: 750;
-      color: var(--clx-text);
-      letter-spacing: -0.03em;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--clx-accent);
       margin-bottom: 14px;
     }
-    .section-head p {
+    .why-head h2 {
+      font-size: clamp(1.65rem, 2.8vw, 2.2rem);
+      font-weight: 700;
+      color: var(--clx-text);
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+      margin-bottom: 14px;
+    }
+    .why-head p {
       font-size: 0.95rem;
       color: var(--clx-text-muted);
-      line-height: 1.6;
+      line-height: 1.65;
     }
 
     .why-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
 
     .why-card {
+      --accent: var(--clx-accent);
       position: relative;
-      padding: 32px 24px;
-      background: var(--clx-bg);
-      border: 1px solid var(--clx-border);
+      padding: 24px 22px;
+      background: linear-gradient(165deg, #c5d4e8 0%, #b2c4de 100%);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(20, 45, 90, 0.18);
       border-radius: 16px;
       overflow: hidden;
-      transition: all 0.25s;
-    }
-    .why-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(37, 99, 235, 0.02), transparent);
-      opacity: 0;
-      transition: opacity 0.4s;
-      pointer-events: none;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.18) inset,
+        0 6px 20px rgba(20, 42, 85, 0.13);
+      transition:
+        transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 240ms ease,
+        box-shadow 280ms ease,
+        background 240ms ease;
     }
     .why-card:hover {
-      transform: translateY(-4px);
-      border-color: var(--clx-accent);
-      box-shadow: var(--clx-shadow-hover), 0 0 0 1px rgba(37, 99, 235, 0.04);
+      transform: translateY(-3px);
+      border-color: color-mix(in srgb, var(--accent) 40%, rgba(37, 80, 150, 0.14));
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.45) inset,
+        0 12px 32px rgba(37, 70, 130, 0.14);
+      background: linear-gradient(165deg, #d0dced 0%, #becfe4 100%);
     }
-    .why-card:hover::before { opacity: 1; }
-
-    .why-num {
-      width: 52px;
-      height: 52px;
-      border-radius: 14px;
-      background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(124, 58, 237, 0.05));
-      border: 1px solid rgba(37, 99, 235, 0.1);
+    .why-index {
+      position: absolute;
+      top: 16px;
+      right: 18px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      color: var(--clx-text);
+      opacity: 0.12;
+      font-variant-numeric: tabular-nums;
+    }
+    .why-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 11px;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: var(--clx-accent);
-      margin-bottom: 18px;
-      transition: all 0.35s;
+      color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 16%, transparent);
+      margin-bottom: 16px;
     }
-    .why-card:hover .why-num {
-      background: linear-gradient(135deg, var(--clx-accent), var(--clx-purple));
-      color: #fff;
-      transform: scale(1.08) rotate(-3deg);
-      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.2);
+    .why-icon ::ng-deep svg {
+      width: 18px;
+      height: 18px;
     }
-
     .why-card h4 {
-      font-size: 1rem;
-      font-weight: 700;
+      font-size: 0.98rem;
+      font-weight: 650;
       color: var(--clx-text);
+      letter-spacing: -0.02em;
       margin-bottom: 8px;
-      position: relative;
-      z-index: 1;
     }
     .why-card p {
-      font-size: 0.85rem;
+      font-size: 0.86rem;
       color: var(--clx-text-muted);
-      line-height: 1.6;
-      position: relative;
-      z-index: 1;
+      line-height: 1.55;
     }
 
-    .why-glow {
-      position: absolute;
-      width: 180px;
-      height: 180px;
-      border-radius: 50%;
-      background: radial-gradient(circle, rgba(37, 99, 235, 0.03), transparent);
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.3s;
-      transform: translate(-50%, -50%);
+    @media (max-width: 900px) {
+      .why-layout {
+        grid-template-columns: 1fr;
+        gap: 32px;
+      }
+      .why-head {
+        position: static;
+        max-width: 520px;
+      }
     }
-    .why-card:hover .why-glow { opacity: 1; }
-
-    @media (max-width: 860px) {
-      .why-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 480px) {
+    @media (max-width: 560px) {
       .why-grid { grid-template-columns: 1fr; }
+      .why-section { padding: 88px 0; }
     }
   `],
 })
 export class WhyChooseComponent {
+  private readonly sanitizer = inject(DomSanitizer);
+
+  private icon(svg: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(svg);
+  }
+
+  readonly items: { title: string; text: string; accent: string; icon: SafeHtml }[] = [
+    {
+      title: 'Treinamento semanal',
+      text: 'Sessões práticas com a equipe — não apenas documentação. Dúvidas resolvidas no fluxo real da clínica.',
+      accent: '#3b6ef5',
+      icon: this.icon(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`),
+    },
+    {
+      title: 'Evolução com feedback',
+      text: 'Roadmap guiado por quem usa no atendimento. Releases frequentes sem quebrar a rotina.',
+      accent: '#0d9488',
+      icon: this.icon(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`),
+    },
+    {
+      title: 'Migração assistida',
+      text: 'Importamos agendas, pacientes e históricos dos principais sistemas — com checklist e go-live controlado.',
+      accent: '#6d5af0',
+      icon: this.icon(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`),
+    },
+    {
+      title: 'Suporte especializado',
+      text: 'Atendimento humano, com gente que entende clínica. SLA claro e canal prioritário no plano profissional.',
+      accent: '#d97706',
+      icon: this.icon(`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>`),
+    },
+  ];
+
   constructor() {
     gsap.registerPlugin(ScrollTrigger);
 
@@ -202,39 +222,20 @@ export class WhyChooseComponent {
       const cards = document.querySelectorAll('.why-card');
       if (!cards.length) return;
 
-      gsap.set(cards, { opacity: 0, y: 40 });
-
+      gsap.set(cards, { opacity: 0, y: 24 });
       ScrollTrigger.create({
         trigger: cards[0].parentElement,
-        start: 'top 80%',
+        start: 'top 85%',
         onEnter: () => {
           gsap.to(cards, {
             opacity: 1,
             y: 0,
-            duration: 0.6,
-            stagger: 0.12,
+            duration: 0.55,
+            stagger: 0.08,
             ease: 'power3.out',
           });
         },
         once: true,
-      });
-
-      cards.forEach(card => {
-        const inner = card as HTMLElement;
-        const glow = card.querySelector('.why-glow') as HTMLElement;
-        if (!glow) return;
-
-        card.addEventListener('mousemove', (e: Event) => {
-          const me = e as MouseEvent;
-          const rect = inner.getBoundingClientRect();
-          const x = me.clientX - rect.left;
-          const y = me.clientY - rect.top;
-          gsap.to(glow, { x, y, opacity: 1, duration: 0.2 });
-        });
-
-        card.addEventListener('mouseleave', () => {
-          gsap.to(glow, { opacity: 0, duration: 0.3 });
-        });
       });
     });
   }

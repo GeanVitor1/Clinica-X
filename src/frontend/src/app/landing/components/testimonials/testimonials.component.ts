@@ -6,32 +6,41 @@ import { AnimateOnScrollDirective } from '../../directives/animate-on-scroll.dir
   standalone: true,
   imports: [AnimateOnScrollDirective],
   template: `
-    <section class="testimonials section-dark" id="depoimentos">
-      <div class="t-bg-overlay"></div>
-      <div class="t-bg-image"></div>
-      <div class="t-bg-pattern"></div>
+    <section class="testimonials" id="depoimentos">
+      <div class="t-bg" aria-hidden="true">
+        <div class="t-orb t-orb--1"></div>
+        <div class="t-orb t-orb--2"></div>
+        <div class="t-noise"></div>
+      </div>
 
       <div class="container">
         <div class="section-head" appAnimateOnScroll>
-          <span class="section-badge">DEPOIMENTOS</span>
-          <h2>Quem usa ama e assina embaixo</h2>
-          <p>Histórias reais de profissionais da Saúde que modernizaram sua gestão e melhoraram seus resultados com o ClinicaX.</p>
+          <span class="section-label">Depoimentos</span>
+          <h2>Quem usa, recomenda com dados</h2>
+          <p>Resultados reais de clínicas que saíram da planilha e passaram a operar com previsibilidade.</p>
         </div>
 
-        <div class="t-scroller">
-          @for (t of testimonials; track t.name) {
-            <article class="t-card" appAnimateOnScroll>
-              <div class="t-photo">
-                <img [src]="t.photo" [alt]="t.name" loading="lazy"/>
-              </div>
-              <p class="t-quote">"{{ t.quote }}"</p>
-              <div class="t-person">
-                <div class="t-avatar">
-                  <img [src]="t.avatar" [alt]="t.name" loading="lazy"/>
+        <div class="t-grid">
+          @for (t of testimonials; track t.name; let i = $index) {
+            <article class="t-card" appAnimateOnScroll [style.--i]="i">
+              <div class="t-top">
+                <div class="t-stars" aria-label="5 estrelas">
+                  @for (s of [1,2,3,4,5]; track s) {
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M12 2.5l2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 16.5 6.6 19.3l1-6.1L3.2 8.9l6.1-.9L12 2.5z"/>
+                    </svg>
+                  }
                 </div>
-                <div>
-                  <a [href]="t.instagram" class="t-handle" target="_blank" rel="noopener">{{ t.handle }}</a>
-                  <div class="t-role">{{ t.name }}</div>
+                <span class="t-metric">{{ t.metric }}</span>
+              </div>
+
+              <p class="t-quote">“{{ t.quote }}”</p>
+
+              <div class="t-person">
+                <div class="t-avatar" [style.background]="t.color">{{ t.initials }}</div>
+                <div class="t-meta">
+                  <strong>{{ t.name }}</strong>
+                  <span>{{ t.role }}</span>
                 </div>
               </div>
             </article>
@@ -44,29 +53,40 @@ import { AnimateOnScrollDirective } from '../../directives/animate-on-scroll.dir
     .testimonials {
       position: relative;
       padding: 120px 0;
-      background: #0f0f23;
+      background:
+        linear-gradient(
+          160deg,
+          #0b1a3a 0%,
+          #122554 28%,
+          #1a3a7a 55%,
+          #163168 78%,
+          #0e2048 100%
+        );
       overflow: hidden;
     }
-    .t-bg-overlay {
+    .t-bg { position: absolute; inset: 0; pointer-events: none; }
+    .t-orb {
       position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(15, 15, 35, 0.92), rgba(15, 15, 35, 0.7), rgba(15, 15, 35, 0.88));
-      z-index: 1;
+      border-radius: 50%;
+      filter: blur(100px);
     }
-    .t-bg-image {
-      position: absolute;
-      inset: 0;
-      background:
-        url('https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=1400&q=60') center 30% / cover no-repeat;
-      z-index: 0;
-      opacity: 0.3;
+    .t-orb--1 {
+      width: 420px; height: 420px;
+      background: radial-gradient(circle, rgba(147, 197, 253, 0.22), transparent 70%);
+      top: -10%; left: 10%;
     }
-    .t-bg-pattern {
+    .t-orb--2 {
+      width: 360px; height: 360px;
+      background: radial-gradient(circle, rgba(59, 130, 246, 0.18), transparent 70%);
+      bottom: -15%; right: 5%;
+    }
+    .t-noise {
       position: absolute;
       inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%232563eb' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-      z-index: 1;
-      pointer-events: none;
+      opacity: 0.04;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px 180px;
+      mix-blend-mode: overlay;
     }
 
     .container {
@@ -74,146 +94,189 @@ import { AnimateOnScrollDirective } from '../../directives/animate-on-scroll.dir
       margin: 0 auto;
       padding: 0 32px;
       position: relative;
-      z-index: 2;
+      z-index: 1;
     }
     .section-head {
-      text-align: center;
-      max-width: 600px;
-      margin: 0 auto 60px;
+      max-width: 520px;
+      margin: 0 0 48px;
     }
-    .section-badge {
+    .section-label {
       display: inline-block;
-      padding: 6px 16px;
-      border-radius: 100px;
-      background: linear-gradient(135deg, rgba(37, 99, 235, 0.15), rgba(124, 58, 237, 0.1));
-      color: var(--clx-accent-light);
       font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      margin-bottom: 16px;
-      border: 1px solid rgba(37, 99, 235, 0.12);
-    }
-    .section-head h2 {
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      font-weight: 750;
-      color: #fafaf9;
-      letter-spacing: -0.03em;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #8babff;
       margin-bottom: 14px;
     }
+    .section-head h2 {
+      font-size: clamp(1.7rem, 3vw, 2.35rem);
+      font-weight: 700;
+      color: #f0f2f7;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
     .section-head p {
-      font-size: 0.95rem;
-      color: rgba(250, 250, 249, 0.5);
-      line-height: 1.6;
+      font-size: 0.98rem;
+      color: rgba(240, 242, 247, 0.5);
+      line-height: 1.65;
     }
 
-    .t-scroller {
-      display: flex;
-      gap: 24px;
-      overflow-x: auto;
-      scroll-snap-type: x mandatory;
-      padding-bottom: 16px;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
+    .t-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
     }
-    .t-scroller::-webkit-scrollbar { display: none; }
 
     .t-card {
-      flex: 0 0 340px;
-      scroll-snap-align: start;
-      background: rgba(250, 250, 249, 0.04);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(250, 250, 249, 0.06);
-      border-radius: 20px;
-      overflow: hidden;
-      transition: all 0.35s;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      padding: 24px;
+      background: rgba(240, 242, 247, 0.035);
+      border: 1px solid rgba(240, 242, 247, 0.07);
+      border-radius: 16px;
+      transition:
+        transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
+        border-color 240ms ease,
+        background 240ms ease,
+        box-shadow 280ms ease;
     }
     .t-card:hover {
-      border-color: rgba(37, 99, 235, 0.2);
-      transform: translateY(-6px);
-      box-shadow: 0 16px 48px rgba(0,0,0,0.25);
+      transform: translateY(-3px);
+      border-color: rgba(59, 110, 245, 0.28);
+      background: rgba(240, 242, 247, 0.05);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
     }
-    .t-photo {
-      width: 100%;
-      height: 200px;
-      overflow: hidden;
+    .t-card:nth-child(1) { grid-column: span 1; }
+    .t-card:nth-child(2) { grid-column: span 1; }
+    .t-card:nth-child(3) { grid-column: span 1; }
+
+    .t-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
     }
-    .t-photo img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform 0.5s;
+    .t-stars {
+      display: flex;
+      gap: 2px;
+      color: #e8b84a;
     }
-    .t-card:hover .t-photo img {
-      transform: scale(1.05);
+    .t-metric {
+      font-size: 0.68rem;
+      font-weight: 650;
+      color: #7dd3c0;
+      background: rgba(13, 148, 136, 0.12);
+      border: 1px solid rgba(13, 148, 136, 0.18);
+      padding: 4px 8px;
+      border-radius: 7px;
+      white-space: nowrap;
     }
     .t-quote {
-      padding: 24px 24px 12px;
-      font-size: 0.88rem;
-      line-height: 1.7;
-      color: rgba(250, 250, 249, 0.8);
+      font-size: 0.94rem;
+      line-height: 1.65;
+      color: rgba(240, 242, 247, 0.82);
+      letter-spacing: -0.01em;
+      flex: 1;
     }
     .t-person {
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 0 24px 24px;
+      padding-top: 4px;
+      border-top: 1px solid rgba(240, 242, 247, 0.06);
+      margin-top: auto;
     }
     .t-avatar {
       width: 40px;
       height: 40px;
-      border-radius: 50%;
-      overflow: hidden;
+      border-radius: 11px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.02em;
       flex-shrink: 0;
-      border: 2px solid rgba(37, 99, 235, 0.15);
     }
-    .t-avatar img { width: 100%; height: 100%; object-fit: cover; }
-    .t-handle { font-size: 0.8rem; font-weight: 600; color: var(--clx-accent-light); text-decoration: none; }
-    .t-handle:hover { text-decoration: underline; }
-    .t-role { font-size: 0.7rem; color: rgba(250, 250, 249, 0.35); }
+    .t-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .t-meta strong {
+      font-size: 0.84rem;
+      font-weight: 650;
+      color: #f0f2f7;
+    }
+    .t-meta span {
+      font-size: 0.72rem;
+      color: rgba(240, 242, 247, 0.42);
+    }
+
+    @media (max-width: 900px) {
+      .t-grid { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      .t-grid { grid-template-columns: 1fr; }
+      .section-head { margin-bottom: 36px; }
+      .testimonials { padding: 88px 0; }
+    }
   `],
 })
 export class TestimonialsComponent {
   readonly testimonials = [
     {
-      photo: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=400&q=80',
-      avatar: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=100&q=80',
+      initials: 'RP',
+      color: 'linear-gradient(135deg, #3b6ef5, #6d5af0)',
       name: 'Dra. Renata Peres',
-      handle: '@drarenataperes',
-      instagram: 'https://instagram.com/drarenataperes',
-      quote: 'O ClinicaX foi o sistema mais completo e prático que já usei na clínica. Reduzi em 60% as faltas com os lembretes automáticos.',
+      role: 'Dermatologia · SP',
+      metric: '−60% faltas',
+      quote: 'Os lembretes automáticos mudaram a ocupação da agenda. Em três semanas as faltas caíram pela metade e a recepção parou de ligar manualmente.',
     },
     {
-      photo: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&q=80',
-      avatar: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=100&q=80',
+      initials: 'LT',
+      color: 'linear-gradient(135deg, #0d9488, #0891b2)',
       name: 'Dra. Letícia Tiago',
-      handle: '@dra.leticiatiago',
-      instagram: 'https://instagram.com/dra.leticiatiago',
-      quote: 'Hoje consigo acessar tudo dos pacientes muito mais rápido. Facilitou demais minha rotina na clínica.',
+      role: 'Clínica multiprofissional',
+      metric: '1 login, tudo',
+      quote: 'Prontuário, financeiro e WhatsApp no mesmo lugar. A equipe entrou no ritmo em poucos dias — sem treinamento interminável.',
     },
     {
-      photo: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&q=80',
-      avatar: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=100&q=80',
-      name: 'Dra. Tais Milene',
-      handle: '@dratamislene',
-      instagram: 'https://instagram.com/dratamislene',
-      quote: 'O sistema é fácil de usar, bem prático e agiliza muito o contato com os pacientes.',
+      initials: 'TM',
+      color: 'linear-gradient(135deg, #6d5af0, #a78bfa)',
+      name: 'Dra. Taís Milene',
+      role: 'Odontologia estética',
+      metric: '+ previsibilidade',
+      quote: 'Pela primeira vez vejo o faturamento do dia com clareza. Decisões deixaram de ser no feeling e passaram a ser com número na mão.',
     },
     {
-      photo: 'https://images.unsplash.com/photo-1598256989800-fe5f95da9787?w=400&q=80',
-      avatar: 'https://images.unsplash.com/photo-1598256989800-fe5f95da9787?w=100&q=80',
+      initials: 'RL',
+      color: 'linear-gradient(135deg, #d97706, #ea580c)',
       name: 'Dra. Rafaella Lutfi',
-      handle: '@drarafaellalutfi',
-      instagram: 'https://instagram.com/drarafaellalutfi',
-      quote: 'O ClinicaX superou minhas expectativas. O sistema é ótimo e o suporte sempre foi excelente.',
+      role: 'Gestora de clínica',
+      metric: 'Suporte real',
+      quote: 'O suporte não é chatbot genérico. Quando precisei migrar dados, a equipe entrou junto e a operação não parou um dia.',
     },
     {
-      photo: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=400&q=80',
-      avatar: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=100&q=80',
+      initials: 'SM',
+      color: 'linear-gradient(135deg, #059669, #0d9488)',
       name: 'Dra. Sheila Munhoz',
-      handle: '@drasheilamunhoz',
-      instagram: 'https://instagram.com/drasheilamunhoz',
-      quote: 'Organizou totalmente a rotina da clínica. Hoje o financeiro ficou muito mais prático.',
+      role: 'Clínica de estética',
+      metric: 'Rotina organizada',
+      quote: 'Financeiro e comissões deixaram de ser planilha. O time enxerga o que vendeu e o que falta cobrar sem caça ao rabo.',
+    },
+    {
+      initials: 'AB',
+      color: 'linear-gradient(135deg, #3b6ef5, #0d9488)',
+      name: 'Dra. Ana Beatriz',
+      role: 'Fundadora · CRM 23872',
+      metric: 'Fora da operação',
+      quote: 'Saí da operação diária. Agenda, confirmações e relatórios rodam sozinhos — eu cuido da estratégia da clínica.',
     },
   ];
 }
