@@ -20,6 +20,18 @@ public class ExceptionMiddleware
         {
             await _next(context);
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Não autorizado {Method} {Path}",
+                context.Request.Method, context.Request.Path);
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+            await context.Response.WriteAsync(JsonSerializer.Serialize(new
+            {
+                error = "Não autorizado.",
+                statusCode = 401
+            }));
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro na requisição {Method} {Path}",

@@ -7,7 +7,14 @@ public enum TipoEvento
     AgendamentoCriado,
     AgendamentoCancelado,
     AgendamentoRemarcado,
-    NotificacaoEnviada
+    AgendamentoConfirmado,
+    AgendamentoRealizado,
+    AgendamentoFalta,
+    NotificacaoEnviada,
+    ProntuarioCriado,
+    ProntuarioEditado,
+    LancamentoFinanceiro,
+    ContratoAssinado
 }
 
 public class Evento : BaseEntity

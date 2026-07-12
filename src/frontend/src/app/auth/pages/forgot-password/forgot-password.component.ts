@@ -19,7 +19,10 @@ import { AuthService } from '../../services/auth.service';
             <p class="dev-hint">Modo dev — link gerado:</p>
             <a class="dev-link" [routerLink]="devPath()" [queryParams]="devQuery()">Abrir redefinição</a>
           }
-          <a routerLink="/auth/login" class="back">Voltar ao login</a>
+          <div class="back-row">
+            <a routerLink="/auth/login" [replaceUrl]="true" class="back">Voltar ao login</a>
+            <a routerLink="/" class="back">Voltar ao início</a>
+          </div>
         } @else {
           <form (ngSubmit)="submit()" class="form">
             <div class="field">
@@ -33,7 +36,10 @@ import { AuthService } from '../../services/auth.service';
               <p class="error">{{ error() }}</p>
             }
           </form>
-          <a routerLink="/auth/login" class="back">Voltar ao login</a>
+          <div class="back-row">
+            <a routerLink="/auth/login" [replaceUrl]="true" class="back">Voltar ao login</a>
+            <a routerLink="/" class="back">Voltar ao início</a>
+          </div>
         }
       </div>
     </div>
@@ -76,7 +82,8 @@ import { AuthService } from '../../services/auth.service';
     .btn-primary:disabled { opacity: 0.6; }
     .error { color: var(--clx-error); font-size: 0.85rem; padding: 12px; background: rgba(220, 38, 38, 0.06); border-radius: var(--clx-radius-xs); border: 1px solid rgba(220, 38, 38, 0.12); }
     .success { color: var(--clx-success); font-size: 0.85rem; margin-bottom: 16px; padding: 12px; background: rgba(5, 150, 105, 0.06); border-radius: var(--clx-radius-xs); border: 1px solid rgba(5, 150, 105, 0.12); }
-    .back { display: inline-block; margin-top: 20px; color: var(--clx-accent); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+    .back-row { display: flex; flex-wrap: wrap; gap: 12px 18px; margin-top: 20px; }
+    .back { display: inline-block; color: var(--clx-accent); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
     .back:hover { color: var(--clx-accent-light); }
     .dev-hint { font-size: 0.8rem; color: var(--clx-text-muted); margin: 12px 0 4px; }
     .dev-link { color: var(--clx-accent); font-size: 0.9rem; word-break: break-all; }

@@ -1,7 +1,14 @@
-import { Component, afterNextRender } from '@angular/core';
+import { Component, OnDestroy, NgZone, afterNextRender, signal, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MagneticDirective } from '../../directives/magnetic.directive';
 import { SplitTextDirective } from '../../directives/split-text.directive';
+
+interface HeroDoctor {
+  name: string;
+  role: string;
+  alt: string;
+  src: string;
+}
 
 @Component({
   selector: 'app-hero',
@@ -32,7 +39,7 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
             <h1 appSplitText>Transforme a gestão da sua clínica em um sistema previsível e escalável.</h1>
 
             <p class="hero-lead">
-              Faça como a <strong>Dra. Ana Beatriz</strong>: saia da operação e assuma o controle
+              Faça como a <strong>{{ currentDoctor().name }}</strong>: saia da operação e assuma o controle
               estratégico do seu negócio. O ClinicaX automatiza agenda, digitaliza processos e
               entrega previsibilidade total do faturamento.
             </p>
@@ -69,13 +76,19 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
 
           <div class="hero-visual">
             <div class="visual-stage">
-              <div class="hero-photo">
-                <img
-                  src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=600&q=80"
-                  alt="Dra. Ana Beatriz"
-                  width="500"
-                  height="500"
-                />
+              <div class="hero-photo" [class.is-fading]="photoFading()" role="img" [attr.aria-label]="currentDoctor().alt">
+                @for (doc of doctors; track doc.src; let i = $index) {
+                  <img
+                    [src]="doc.src"
+                    [alt]="doc.alt"
+                    width="500"
+                    height="500"
+                    [class.active]="i === doctorIndex()"
+                    [attr.loading]="i === 0 ? 'eager' : 'lazy'"
+                    [attr.fetchpriority]="i === 0 ? 'high' : 'low'"
+                    decoding="async"
+                  />
+                }
                 <div class="photo-ring" aria-hidden="true"></div>
               </div>
 
@@ -114,14 +127,26 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
                 <div class="fc-sub">Assinado às 10:14</div>
               </div>
 
-              <div class="hero-profile-card">
+              <div class="hero-profile-card" [class.hpc-swap]="photoFading()">
                 <div class="hpc-stars" aria-hidden="true">
                   @for (s of [1,2,3,4,5]; track s) {
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.5l2.7 5.5 6.1.9-4.4 4.3 1 6.1L12 16.5 6.6 19.3l1-6.1L3.2 8.9l6.1-.9L12 2.5z"/></svg>
                   }
                 </div>
-                <div class="hpc-name">Dra. Ana Beatriz</div>
-                <div class="hpc-crm">CRM 23872 · Estética</div>
+                <div class="hpc-name">{{ currentDoctor().name }}</div>
+                <div class="hpc-crm">{{ currentDoctor().role }}</div>
+                <div class="hpc-dots" role="tablist" aria-label="Médicos em destaque">
+                  @for (doc of doctors; track doc.src; let i = $index) {
+                    <button
+                      type="button"
+                      class="hpc-dot"
+                      [class.active]="i === doctorIndex()"
+                      [attr.aria-label]="doc.name"
+                      [attr.aria-selected]="i === doctorIndex()"
+                      (click)="selectDoctor(i)"
+                    ></button>
+                  }
+                </div>
               </div>
             </div>
           </div>
@@ -335,6 +360,9 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
       display: flex;
       align-items: center;
       justify-content: center;
+      /* space so profile badge sits under the photo without clipping */
+      padding-bottom: 8px;
+      box-sizing: border-box;
     }
 
     .hero-photo {
@@ -348,12 +376,32 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
         0 0 0 1px rgba(240, 242, 247, 0.08),
         0 24px 80px rgba(59, 110, 245, 0.18),
         0 8px 24px rgba(0, 0, 0, 0.35);
+      background: rgba(15, 30, 60, 0.5);
     }
     .hero-photo img {
+      position: absolute;
+      inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
+      object-position: center top;
       display: block;
+      opacity: 0;
+      transform: scale(1.06);
+      transition:
+        opacity 1s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 1.25s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .hero-photo img.active {
+      opacity: 1;
+      transform: scale(1);
+      z-index: 1;
+    }
+    .hero-photo.is-fading img.active {
+      opacity: 0.35;
+      transform: scale(1.02);
     }
     .photo-ring {
       position: absolute;
@@ -364,27 +412,60 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
       z-index: -1;
     }
 
+    /* Profile badge — centered under photo (not on top of metric cards) */
     .hero-profile-card {
       position: absolute;
-      bottom: 6%;
-      right: 4%;
-      background: linear-gradient(145deg, rgba(30, 58, 120, 0.82), rgba(20, 42, 90, 0.78));
+      bottom: 2%;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(145deg, rgba(30, 58, 120, 0.92), rgba(20, 42, 90, 0.9));
       backdrop-filter: blur(20px) saturate(1.2);
       -webkit-backdrop-filter: blur(20px) saturate(1.2);
-      border: 1px solid rgba(147, 197, 253, 0.18);
+      border: 1px solid rgba(147, 197, 253, 0.22);
       border-radius: 14px;
-      padding: 14px 20px;
-      z-index: 4;
+      padding: 12px 18px 10px;
+      z-index: 5;
       text-align: center;
-      box-shadow: 0 12px 40px rgba(15, 40, 90, 0.35);
+      box-shadow: 0 12px 40px rgba(15, 40, 90, 0.4);
+      white-space: nowrap;
+      pointer-events: auto;
+      min-width: 168px;
+      transition: opacity 350ms ease, transform 350ms ease;
     }
-    .hpc-stars { display: flex; gap: 2px; color: #e8b84a; margin-bottom: 6px; justify-content: center; }
-    .hpc-name { font-size: 0.8rem; font-weight: 600; color: #f0f2f7; }
-    .hpc-crm { font-size: 0.66rem; color: rgba(240, 242, 247, 0.4); }
+    .hero-profile-card.hpc-swap {
+      opacity: 0.55;
+      transform: translateX(-50%) translateY(4px);
+    }
+    .hpc-stars { display: flex; gap: 2px; color: #e8b84a; margin-bottom: 6px; justify-content: center; pointer-events: none; }
+    .hpc-name { font-size: 0.8rem; font-weight: 600; color: #f0f2f7; pointer-events: none; }
+    .hpc-crm { font-size: 0.66rem; color: rgba(240, 242, 247, 0.45); margin-bottom: 8px; pointer-events: none; }
+    .hpc-dots {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+    }
+    .hpc-dot {
+      width: 7px;
+      height: 7px;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: rgba(240, 242, 247, 0.22);
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.3s ease;
+    }
+    .hpc-dot:hover {
+      background: rgba(240, 242, 247, 0.45);
+    }
+    .hpc-dot.active {
+      background: #8babff;
+      transform: scale(1.35);
+    }
 
     .float-card {
       position: absolute;
-      background: linear-gradient(145deg, rgba(36, 70, 140, 0.78), rgba(22, 48, 100, 0.74));
+      background: linear-gradient(145deg, rgba(36, 70, 140, 0.82), rgba(22, 48, 100, 0.78));
       backdrop-filter: blur(22px) saturate(1.15);
       -webkit-backdrop-filter: blur(22px) saturate(1.15);
       border: 1px solid rgba(147, 197, 253, 0.2);
@@ -397,32 +478,41 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
         0 8px 32px rgba(15, 40, 90, 0.32),
         0 0 0 1px rgba(147, 197, 253, 0.08) inset;
       transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 280ms ease;
+      /* keep cards inside stage so they don't stack on each other */
+      will-change: transform;
     }
     .float-card:hover {
-      transform: translateY(-2px) scale(1.015);
+      z-index: 6;
       box-shadow: 0 14px 40px rgba(20, 50, 110, 0.4);
     }
 
-    /* Anchored INSIDE visual stage — never overlaps hero text */
+    /*
+      Corners of the stage — no shared bottom-right:
+      revenue  → top-right
+      schedule → mid-left
+      term     → mid-right (above profile)
+      profile  → bottom-center
+    */
     .float-card--revenue {
-      top: 2%;
-      right: -2%;
+      top: 0;
+      right: 0;
       animation: floatUp 5.5s ease-in-out infinite;
     }
     .float-card--schedule {
-      top: 42%;
-      left: -4%;
+      top: 38%;
+      left: 0;
       animation: floatUp 5.5s ease-in-out 1.4s infinite;
     }
     .float-card--term {
-      bottom: 2%;
-      right: 18%;
+      top: 58%;
+      right: 0;
+      bottom: auto;
       animation: floatUp 5.5s ease-in-out 2.8s infinite;
     }
 
     @keyframes floatUp {
       0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-7px); }
+      50% { transform: translateY(-6px); }
     }
 
     .fc-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
@@ -467,12 +557,14 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
       background: linear-gradient(90deg, #3b6ef5, #6d8ef8);
     }
 
+    /* Faixa de métricas — acima do fade para não ficar “lavada” de branco */
     .hero-strip {
       position: relative;
-      z-index: 2;
+      z-index: 4;
       overflow: hidden;
-      padding: 18px 0 28px;
+      padding: 20px 0 40px;
       mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
+      -webkit-mask-image: linear-gradient(90deg, transparent, black 8%, black 92%, transparent);
     }
     .hero-strip-track {
       display: flex;
@@ -486,39 +578,46 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
       100% { transform: translateX(var(--strip-distance, -50%)); }
     }
     .strip-card {
-      background: rgba(240, 242, 247, 0.03);
-      border: 1px solid rgba(240, 242, 247, 0.06);
+      /* fundo opaco o suficiente para o fade de baixo não atravessar o card */
+      background: linear-gradient(145deg, rgba(28, 52, 100, 0.94), rgba(16, 34, 72, 0.96));
+      border: 1px solid rgba(147, 197, 253, 0.18);
       border-radius: 12px;
       padding: 12px 18px;
       min-width: 158px;
       white-space: nowrap;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(5, 12, 28, 0.28);
     }
     .strip-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
     .strip-head svg { width: 13px; height: 13px; color: #7aa0ff; }
-    .strip-head span { font-size: 0.64rem; color: rgba(240, 242, 247, 0.42); }
+    .strip-head span { font-size: 0.64rem; color: rgba(240, 242, 247, 0.55); }
     .strip-badge {
       padding: 2px 6px;
       border-radius: 5px;
-      background: rgba(59, 110, 245, 0.12);
+      background: rgba(59, 110, 245, 0.18);
       color: #8babff;
       font-size: 0.5rem;
       font-weight: 700;
     }
     .strip-value { font-size: 0.92rem; font-weight: 700; color: #f0f2f7; }
-    .strip-sub { font-size: 0.58rem; color: rgba(240, 242, 247, 0.32); }
+    .strip-sub { font-size: 0.58rem; color: rgba(240, 242, 247, 0.42); }
 
+    /* Transição suave hero → seção seguinte; fica ABAIXO dos cards (z-index menor) */
     .hero-fade {
       position: absolute;
-      bottom: 0; left: 0; right: 0;
-      height: 120px;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
       background: linear-gradient(
         180deg,
         transparent 0%,
-        rgba(120, 155, 195, 0.45) 45%,
-        rgba(155, 180, 210, 0.97) 100%
+        rgba(15, 33, 69, 0.35) 40%,
+        rgba(100, 140, 185, 0.55) 78%,
+        rgba(130, 165, 205, 0.85) 100%
       );
-      z-index: 3;
+      z-index: 1;
       pointer-events: none;
     }
 
@@ -534,44 +633,190 @@ import { SplitTextDirective } from '../../directives/split-text.directive';
       .hero-lead { margin-left: auto; margin-right: auto; }
       .hero-ctas { justify-content: center; }
       .hero-social { justify-content: center; flex-wrap: wrap; }
-      .visual-stage { width: min(100%, 380px); }
+      .visual-stage {
+        width: min(100%, 380px);
+        /* room for profile card below photo */
+        margin-bottom: 28px;
+      }
       .hero-photo { width: min(100%, 300px); }
-      .float-card--schedule { left: 0; }
-      .float-card--revenue { right: 0; }
+      .float-card--revenue { top: 0; right: 0; }
+      .float-card--schedule { top: 36%; left: 0; }
+      .float-card--term { top: 56%; right: 0; bottom: auto; }
+      .hero-profile-card {
+        bottom: -8px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+      }
     }
 
     @media (max-width: 560px) {
-      .float-card { min-width: 140px; padding: 12px 14px; }
-      .float-card--schedule { top: 48%; }
-      .hero-profile-card { right: 0; bottom: 0; }
+      .float-card { min-width: 132px; max-width: 150px; padding: 10px 12px; }
+      .float-card--revenue { top: 2%; right: 0; }
+      .float-card--schedule { top: 34%; left: 0; }
+      .float-card--term { top: 54%; right: 0; }
+      .hero-profile-card {
+        bottom: -12px;
+        left: 50%;
+        right: auto;
+        transform: translateX(-50%);
+        padding: 10px 14px;
+      }
       .btn { width: 100%; justify-content: center; }
       .hero-ctas { flex-direction: column; }
+      .visual-stage { margin-bottom: 36px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .float-card--revenue,
+      .float-card--schedule,
+      .float-card--term {
+        animation: none;
+      }
+      .hero-photo img {
+        transition: none;
+      }
+      .hero-profile-card {
+        transition: none;
+      }
     }
   `],
 })
-export class HeroComponent {
+export class HeroComponent implements OnDestroy {
+  private readonly ngZone = inject(NgZone);
+
+  /** Índice do médico exibido no hero */
+  readonly doctorIndex = signal(0);
+  readonly photoFading = signal(false);
+
+  /** Médicos em rotação (fotos Unsplash de profissionais de saúde) */
+  readonly doctors: HeroDoctor[] = [
+    {
+      name: 'Dra. Ana Beatriz',
+      role: 'CRM 23872 · Estética',
+      alt: 'Dra. Ana Beatriz, médica estética',
+      src: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=600&q=80',
+    },
+    {
+      name: 'Dr. Ricardo Mendes',
+      role: 'CRM 18401 · Clínica geral',
+      alt: 'Dr. Ricardo Mendes, clínico geral',
+      src: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=600&q=80',
+    },
+    {
+      name: 'Dra. Camila Torres',
+      role: 'CRO 9124 · Odontologia',
+      alt: 'Dra. Camila Torres, dentista',
+      src: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=600&q=80',
+    },
+    {
+      name: 'Dr. Felipe Nogueira',
+      role: 'CRM 30115 · Dermatologia',
+      alt: 'Dr. Felipe Nogueira, dermatologista',
+      src: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=600&q=80',
+    },
+    {
+      name: 'Dra. Juliana Prado',
+      role: 'CRM 25640 · Ortopedia',
+      alt: 'Dra. Juliana Prado, ortopedista',
+      src: 'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=600&q=80',
+    },
+    {
+      name: 'Dr. André Vasconcelos',
+      role: 'CRM 17890 · Cardiologia',
+      alt: 'Dr. André Vasconcelos, cardiologista',
+      src: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?w=600&q=80',
+    },
+  ];
+
+  readonly currentDoctor = computed(() => this.doctors[this.doctorIndex()] ?? this.doctors[0]);
+
+  private rotateTimer: ReturnType<typeof setInterval> | null = null;
+  private fadeTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly ROTATE_MS = 10_000;
+
   constructor() {
     afterNextRender(() => {
-      const track = document.querySelector('.hero-strip-track') as HTMLElement;
-      if (!track) return;
-
-      const setCount = this.baseItems.length;
-      const items = Array.from(track.children) as HTMLElement[];
-
-      let setWidth = 0;
-      for (let i = 0; i < setCount && i < items.length; i++) {
-        setWidth += items[i].getBoundingClientRect().width;
-        if (i < setCount - 1) {
-          setWidth += parseFloat(getComputedStyle(track).gap) || 16;
-        }
-      }
-
-      const speed = 60;
-      const duration = setWidth / speed;
-
-      track.style.setProperty('--strip-distance', `-${setWidth}px`);
-      track.style.setProperty('--strip-duration', `${duration}s`);
+      this.preloadDoctorImages();
+      this.startDoctorRotation();
+      this.setupStripAnimation();
     });
+  }
+
+  ngOnDestroy(): void {
+    this.stopDoctorRotation();
+    if (this.fadeTimer) clearTimeout(this.fadeTimer);
+  }
+
+  /** Clique nos dots do card de perfil */
+  selectDoctor(index: number): void {
+    if (index === this.doctorIndex() || index < 0 || index >= this.doctors.length) return;
+    this.goToDoctor(index);
+    // Reinicia o ciclo automático a partir da escolha manual
+    this.startDoctorRotation();
+  }
+
+  private startDoctorRotation(): void {
+    this.stopDoctorRotation();
+    // Interval fora da zone (menos ruído); updates de UI voltam com ngZone.run
+    this.ngZone.runOutsideAngular(() => {
+      this.rotateTimer = setInterval(() => this.nextDoctor(), this.ROTATE_MS);
+    });
+  }
+
+  private stopDoctorRotation(): void {
+    if (this.rotateTimer) {
+      clearInterval(this.rotateTimer);
+      this.rotateTimer = null;
+    }
+  }
+
+  private nextDoctor(): void {
+    const next = (this.doctorIndex() + 1) % this.doctors.length;
+    this.goToDoctor(next);
+  }
+
+  private goToDoctor(index: number): void {
+    this.ngZone.run(() => {
+      this.photoFading.set(true);
+      if (this.fadeTimer) clearTimeout(this.fadeTimer);
+      // Crossfade: escurece levemente e troca o ativo
+      this.fadeTimer = setTimeout(() => {
+        this.ngZone.run(() => {
+          this.doctorIndex.set(index);
+          this.photoFading.set(false);
+        });
+      }, 320);
+    });
+  }
+
+  private preloadDoctorImages(): void {
+    this.doctors.forEach((d) => {
+      const img = new Image();
+      img.src = d.src;
+    });
+  }
+
+  private setupStripAnimation(): void {
+    const track = document.querySelector('.hero-strip-track') as HTMLElement;
+    if (!track) return;
+
+    const setCount = this.baseItems.length;
+    const items = Array.from(track.children) as HTMLElement[];
+
+    let setWidth = 0;
+    for (let i = 0; i < setCount && i < items.length; i++) {
+      setWidth += items[i].getBoundingClientRect().width;
+      if (i < setCount - 1) {
+        setWidth += parseFloat(getComputedStyle(track).gap) || 16;
+      }
+    }
+
+    const speed = 60;
+    const duration = setWidth / speed;
+
+    track.style.setProperty('--strip-distance', `-${setWidth}px`);
+    track.style.setProperty('--strip-duration', `${duration}s`);
   }
 
   private readonly baseItems = [

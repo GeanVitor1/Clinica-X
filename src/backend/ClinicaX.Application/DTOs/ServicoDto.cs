@@ -8,6 +8,7 @@ public record ServicoDto(
     int DuracaoMin,
     decimal Valor,
     string? Cor,
+    decimal PercentualComissao,
     bool Ativo,
     DateTime CriadoEm
 );
@@ -17,7 +18,8 @@ public record CreateServicoRequest(
     string? Descricao,
     int DuracaoMin,
     decimal Valor,
-    string? Cor
+    string? Cor,
+    decimal PercentualComissao = 0
 );
 
 public record UpdateServicoRequest(
@@ -25,5 +27,6 @@ public record UpdateServicoRequest(
     string? Descricao,
     int DuracaoMin,
     decimal Valor,
-    string? Cor
+    string? Cor,
+    decimal PercentualComissao = 0
 );

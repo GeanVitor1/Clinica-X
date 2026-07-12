@@ -2,7 +2,6 @@ using ClinicaX.Application.DTOs;
 using ClinicaX.Application.Interfaces;
 using ClinicaX.Application.Services;
 using ClinicaX.Domain.Entities;
-using FluentResults;
 using Moq;
 
 namespace ClinicaX.Tests;
@@ -15,6 +14,7 @@ public class AgendamentoServiceTests
     private readonly Mock<IPacienteRepository> _pacienteRepoMock = new();
     private readonly Mock<INotificationDispatcher> _notifMock = new();
     private readonly Mock<IEventoRepository> _eventoRepoMock = new();
+    private readonly Mock<IModulosRepository> _modulosMock = new();
     private readonly Mock<IUnitOfWork> _uowMock = new();
     private readonly Mock<ICacheService> _cacheMock = new();
     private readonly AgendamentoService _service;
@@ -32,6 +32,7 @@ public class AgendamentoServiceTests
             _pacienteRepoMock.Object,
             _notifMock.Object,
             _eventoRepoMock.Object,
+            _modulosMock.Object,
             _uowMock.Object,
             _cacheMock.Object);
     }
@@ -41,6 +42,8 @@ public class AgendamentoServiceTests
         _clinicaRepoMock.Setup(r => r.GetByIdAsync(_clinicaId, default)).ReturnsAsync(new Clinica
         {
             Id = _clinicaId,
+            Nome = "Clinica",
+            Endereco = "Rua A",
             HorarioAbertura = new TimeSpan(8, 0, 0),
             HorarioFechamento = new TimeSpan(18, 0, 0),
             DiasFuncionamento = "0,1,2,3,4,5,6"
@@ -49,17 +52,17 @@ public class AgendamentoServiceTests
 
     private void SetupServico()
     {
-        _servicoRepoMock.Setup(r => r.GetByIdAsync(_servicoId, default)).ReturnsAsync(new Servico
+        _servicoRepoMock.Setup(r => r.GetByIdAndClinicaAsync(_clinicaId, _servicoId, default)).ReturnsAsync(new Servico
         {
-            Id = _servicoId, DuracaoMin = 30, Nome = "Consulta", Cor = "#14b8a6"
+            Id = _servicoId, ClinicaId = _clinicaId, DuracaoMin = 30, Nome = "Consulta", Cor = "#14b8a6"
         });
     }
 
     private void SetupPaciente()
     {
-        _pacienteRepoMock.Setup(r => r.GetByIdAsync(_pacienteId, default)).ReturnsAsync(new Paciente
+        _pacienteRepoMock.Setup(r => r.GetByIdAndClinicaAsync(_clinicaId, _pacienteId, default)).ReturnsAsync(new Paciente
         {
-            Id = _pacienteId, Nome = "Maria"
+            Id = _pacienteId, ClinicaId = _clinicaId, Nome = "Maria", Ativo = true
         });
     }
 
@@ -68,7 +71,7 @@ public class AgendamentoServiceTests
     {
         _clinicaRepoMock.Setup(r => r.GetByIdAsync(_clinicaId, default)).ReturnsAsync((Clinica?)null);
 
-        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, DateTime.UtcNow.AddHours(2), null);
+        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, DateTime.UtcNow.AddHours(2), null, null, null, null);
         var result = await _service.CreateAsync(_clinicaId, request);
 
         Assert.True(result.IsFailed);
@@ -79,13 +82,13 @@ public class AgendamentoServiceTests
     public async Task CreateAsync_DeveRetornarErro_QuandoServicoNaoEncontrado()
     {
         SetupClinica();
-        _servicoRepoMock.Setup(r => r.GetByIdAsync(_servicoId, default)).ReturnsAsync((Servico?)null);
+        _servicoRepoMock.Setup(r => r.GetByIdAndClinicaAsync(_clinicaId, _servicoId, default)).ReturnsAsync((Servico?)null);
 
-        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, DateTime.UtcNow.AddHours(2), null);
+        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, DateTime.UtcNow.AddHours(2), null, null, null, null);
         var result = await _service.CreateAsync(_clinicaId, request);
 
         Assert.True(result.IsFailed);
-        Assert.Contains("Serviço não encontrado.", result.Errors.Select(e => e.Message));
+        Assert.Contains("Serviço não encontrado nesta clínica.", result.Errors.Select(e => e.Message));
     }
 
     [Fact]
@@ -95,8 +98,8 @@ public class AgendamentoServiceTests
         SetupServico();
         SetupPaciente();
 
-        var madrugada = new DateTime(2026, 7, 10, 5, 0, 0, DateTimeKind.Utc);
-        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, madrugada, null);
+        var madrugada = DateTime.Today.AddDays(1).Date.AddHours(5);
+        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, madrugada, null, null, null, null);
         var result = await _service.CreateAsync(_clinicaId, request);
 
         Assert.True(result.IsFailed);
@@ -111,14 +114,17 @@ public class AgendamentoServiceTests
             Id = _clinicaId,
             HorarioAbertura = new TimeSpan(8, 0, 0),
             HorarioFechamento = new TimeSpan(18, 0, 0),
-            DiasFuncionamento = "1,2,3,4,5" // seg-sex
+            DiasFuncionamento = "1,2,3,4,5"
         });
         SetupServico();
         SetupPaciente();
 
-        // 2026-07-12 = domingo
-        var domingo = new DateTime(2026, 7, 12, 10, 0, 0, DateTimeKind.Utc);
-        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, domingo, null);
+        // Próximo domingo
+        var domingo = DateTime.Today.AddDays(1);
+        while (domingo.DayOfWeek != DayOfWeek.Sunday)
+            domingo = domingo.AddDays(1);
+        domingo = domingo.Date.AddHours(10);
+        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, domingo, null, null, null, null);
         var result = await _service.CreateAsync(_clinicaId, request);
 
         Assert.True(result.IsFailed);
@@ -128,35 +134,39 @@ public class AgendamentoServiceTests
     [Fact]
     public async Task CreateAsync_DeveRetornarErro_QuandoHaConflito()
     {
-        var inicio = new DateTime(2026, 7, 10, 10, 0, 0, DateTimeKind.Utc);
+        var inicio = DateTime.Today.AddDays(1).AddHours(10);
         SetupClinica();
         SetupServico();
         SetupPaciente();
-        _repoMock.Setup(r => r.HasConflictAsync(_clinicaId, inicio, inicio.AddMinutes(30), null, default)).ReturnsAsync(true);
+        _repoMock.Setup(r => r.HasBloqueioAsync(_clinicaId, inicio, inicio.AddMinutes(30), null, null, null, default)).ReturnsAsync(false);
+        _repoMock.Setup(r => r.HasConflictAsync(_clinicaId, inicio, inicio.AddMinutes(30), null, null, null, null, default)).ReturnsAsync(true);
 
-        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, inicio, null);
+        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, inicio, null, null, null, null);
         var result = await _service.CreateAsync(_clinicaId, request);
 
         Assert.True(result.IsFailed);
-        Assert.Contains("Conflito de horário com outro agendamento.", result.Errors.Select(e => e.Message));
+        Assert.Contains("Conflito de horário", result.Errors.Select(e => e.Message).First());
     }
 
     [Fact]
     public async Task CreateAsync_DeveCriarComSucesso()
     {
-        var inicio = new DateTime(2026, 7, 10, 10, 0, 0, DateTimeKind.Utc);
+        var inicio = DateTime.Today.AddDays(1).AddHours(10);
         SetupClinica();
         SetupServico();
         SetupPaciente();
-        _repoMock.Setup(r => r.HasConflictAsync(_clinicaId, inicio, inicio.AddMinutes(30), null, default)).ReturnsAsync(false);
+        _repoMock.Setup(r => r.HasBloqueioAsync(_clinicaId, inicio, inicio.AddMinutes(30), null, null, null, default)).ReturnsAsync(false);
+        _repoMock.Setup(r => r.HasConflictAsync(_clinicaId, inicio, inicio.AddMinutes(30), null, null, null, null, default)).ReturnsAsync(false);
 
-        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, inicio, null);
+        var request = new CreateAgendamentoRequest(_pacienteId, _servicoId, inicio, null, null, null, null);
         var result = await _service.CreateAsync(_clinicaId, request);
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Maria", result.Value.PacienteNome);
         Assert.Equal("Consulta", result.Value.ServicoNome);
         Assert.Equal("#14b8a6", result.Value.Cor);
+        // Token de confirmação não é exposto no DTO da API
+        Assert.Null(result.Value.TokenConfirmacao);
     }
 
     [Fact]
@@ -174,7 +184,7 @@ public class AgendamentoServiceTests
             Status = AgendamentoStatus.Agendado
         };
         _repoMock.Setup(r => r.GetByClinicaAsync(_clinicaId, null, null, default)).ReturnsAsync([agendamento]);
-        _pacienteRepoMock.Setup(r => r.GetAllAsync(_clinicaId, null, 1, int.MaxValue, default))
+        _pacienteRepoMock.Setup(r => r.GetAllAsync(_clinicaId, null, 1, 200, null, default))
             .ReturnsAsync([new Paciente { Id = _pacienteId, Nome = "Maria" }]);
         _servicoRepoMock.Setup(r => r.GetAllAsync(_clinicaId, default))
             .ReturnsAsync([new Servico { Id = _servicoId, Nome = "Consulta", Cor = "#14b8a6" }]);
@@ -192,10 +202,10 @@ public class AgendamentoServiceTests
     public async Task CancelarAsync_DeveCancelarComSucesso()
     {
         var agendamento = new Agendamento { Id = Guid.NewGuid(), ClinicaId = _clinicaId, PacienteId = _pacienteId, ServicoId = _servicoId, Status = AgendamentoStatus.Agendado };
-        _repoMock.Setup(r => r.GetByIdAsync(agendamento.Id, default)).ReturnsAsync(agendamento);
+        _repoMock.Setup(r => r.GetByIdAndClinicaAsync(_clinicaId, agendamento.Id, default)).ReturnsAsync(agendamento);
 
         var request = new CancelarAgendamentoRequest("Paciente desistiu");
-        var result = await _service.CancelarAsync(agendamento.Id, request);
+        var result = await _service.CancelarAsync(_clinicaId, agendamento.Id, request);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(AgendamentoStatus.Cancelado, agendamento.Status);
@@ -205,11 +215,33 @@ public class AgendamentoServiceTests
     [Fact]
     public async Task CancelarAsync_DeveRetornarErro_QuandoNaoEncontrado()
     {
-        _repoMock.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), default)).ReturnsAsync((Agendamento?)null);
+        _repoMock.Setup(r => r.GetByIdAndClinicaAsync(_clinicaId, It.IsAny<Guid>(), default)).ReturnsAsync((Agendamento?)null);
 
         var request = new CancelarAgendamentoRequest("Motivo");
-        var result = await _service.CancelarAsync(Guid.NewGuid(), request);
+        var result = await _service.CancelarAsync(_clinicaId, Guid.NewGuid(), request);
 
         Assert.True(result.IsFailed);
+    }
+
+    [Fact]
+    public async Task ConfirmarPorTokenAsync_DeveConfirmar()
+    {
+        var agendamento = new Agendamento
+        {
+            Id = Guid.NewGuid(),
+            ClinicaId = _clinicaId,
+            PacienteId = _pacienteId,
+            Status = AgendamentoStatus.Agendado,
+            TokenConfirmacao = "abc123",
+            DataHoraInicio = DateTime.UtcNow.AddDays(1)
+        };
+        _repoMock.Setup(r => r.GetByTokenConfirmacaoAsync("abc123", default)).ReturnsAsync(agendamento);
+        _pacienteRepoMock.Setup(r => r.GetByIdAsync(_pacienteId, default)).ReturnsAsync(new Paciente { Id = _pacienteId, Nome = "Maria" });
+
+        var result = await _service.ConfirmarPorTokenAsync("abc123");
+
+        Assert.True(result.IsSuccess);
+        Assert.True(result.Value.Sucesso);
+        Assert.Equal(AgendamentoStatus.Confirmado, agendamento.Status);
     }
 }

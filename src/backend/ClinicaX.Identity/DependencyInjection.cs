@@ -12,7 +12,11 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddIdentityAuth(this IServiceCollection services, IConfiguration configuration)
     {
-        var jwtKey = configuration["Jwt:Key"]!;
+        var jwtKey = configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
+            throw new InvalidOperationException(
+                "Jwt:Key deve ser configurada com pelo menos 32 caracteres (variável de ambiente Jwt__Key ou User Secrets).");
+
         services.AddAuthentication(options =>
         {
             options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -28,7 +32,9 @@ public static class DependencyInjection
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = configuration["Jwt:Issuer"],
                 ValidAudience = configuration["Jwt:Audience"],
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+                ClockSkew = TimeSpan.FromMinutes(1),
+                RoleClaimType = System.Security.Claims.ClaimTypes.Role
             };
 
             // SignalR envia o JWT via query string access_token
@@ -52,7 +58,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<IJwtService, JwtService>();
-        services.AddScoped<IAuthService, AuthService>();
+        // IAuthService registrado apenas aqui (não duplicar em Program.cs)
 
         return services;
     }

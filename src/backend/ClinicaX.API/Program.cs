@@ -1,3 +1,4 @@
+using System.Threading.RateLimiting;
 using ClinicaX.API.Endpoints;
 using ClinicaX.API.Hubs;
 using ClinicaX.API.Middleware;
@@ -8,12 +9,31 @@ using ClinicaX.Identity;
 using ClinicaX.Identity.Services;
 using ClinicaX.Infrastructure;
 using ClinicaX.Persistence;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.RateLimiting;
 using Serilog;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Railway / containers: PORT dinâmico
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port))
+{
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
 builder.Host.UseSerilog((ctx, cfg) =>
-    cfg.ReadFrom.Configuration(ctx.Configuration));
+    cfg.ReadFrom.Configuration(ctx.Configuration)
+       .WriteTo.Console());
+
+// Proxy headers (Railway / reverse proxy)
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    // Confia no proxy (Railway/Nginx); redes conhecidas limpas para cloud
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 builder.Services.AddApplication();
 builder.Services.AddPersistence(builder.Configuration);
@@ -26,13 +46,57 @@ builder.Services.AddSingleton<IRealtimeNotifier, SignalRRealtimeNotifier>();
 builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("auth", opt =>
+    {
+        opt.PermitLimit = 30;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+    options.AddFixedWindowLimiter("public", opt =>
+    {
+        opt.PermitLimit = 60;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+});
+
+// CORS: lista explícita + previews Vercel (*.vercel.app) se Cors:AllowVercelPreviews=true
+var corsOrigins = builder.Configuration.GetSection("Cors:Origins").Get<string[]>()
+    ??
+    [
+        "http://localhost:4200",
+        "https://localhost:4200",
+        "http://127.0.0.1:4200",
+        "http://localhost",
+        "http://localhost:80"
+    ];
+
+// Também aceita CSV em Cors__Origins (Railway: "https://a.vercel.app,https://b.vercel.app")
+var corsCsv = builder.Configuration["Cors:Origins"];
+if (!string.IsNullOrWhiteSpace(corsCsv) && corsCsv.Contains(','))
+{
+    corsOrigins = corsCsv.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+}
+
+var allowVercelPreviews = builder.Configuration.GetValue("Cors:AllowVercelPreviews", true);
+var originSet = new HashSet<string>(corsOrigins.Where(o => !string.IsNullOrWhiteSpace(o)), StringComparer.OrdinalIgnoreCase);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Angular", policy =>
-        policy.WithOrigins(
-                "http://localhost:4200",
-                "https://localhost:4200",
-                "http://127.0.0.1:4200")
+        policy.SetIsOriginAllowed(origin =>
+            {
+                if (string.IsNullOrWhiteSpace(origin)) return false;
+                if (originSet.Contains(origin)) return true;
+                if (allowVercelPreviews &&
+                    Uri.TryCreate(origin, UriKind.Absolute, out var uri) &&
+                    uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase))
+                    return true;
+                return false;
+            })
               .AllowAnyHeader()
               .AllowAnyMethod()
               .AllowCredentials());
@@ -40,19 +104,24 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+app.UseForwardedHeaders();
+
 using (var scope = app.Services.CreateScope())
 {
-    await ClinicaX.Persistence.Data.SeedData.InitializeAsync(app.Services);
+    var enableDemo = app.Configuration.GetValue("Seed:EnableDemo", app.Environment.IsDevelopment());
+    await ClinicaX.Persistence.Data.SeedData.InitializeAsync(app.Services, enableDemo);
 }
 
 app.UseMiddleware<ExceptionMiddleware>();
 
+// TLS é terminado no Railway/Vercel — não forçar redirect HTTPS no container
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
 app.UseCors("Angular");
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -66,10 +135,20 @@ app.MapDashboardEndpoints();
 app.MapEventoEndpoints();
 app.MapReportEndpoints();
 app.MapConfigEndpoints();
+app.MapModulosEndpoints();
 app.MapHub<NotificationHub>("/hub/notificacoes");
 
-app.MapGet("/", () => Results.Ok(new { message = "ClinicaX API rodando!" }))
-   .AllowAnonymous();
+app.MapGet("/", () => Results.Ok(new
+{
+    message = "ClinicaX API rodando!",
+    env = app.Environment.EnvironmentName,
+    utc = DateTime.UtcNow
+}))
+.AllowAnonymous();
+
+app.MapGet("/health", () => Results.Ok(new { status = "healthy", utc = DateTime.UtcNow }))
+   .AllowAnonymous()
+   .WithName("Health");
 
 try
 {

@@ -2,7 +2,6 @@ using ClinicaX.Application.DTOs;
 using ClinicaX.Application.Interfaces;
 using ClinicaX.Application.Services;
 using ClinicaX.Domain.Entities;
-using FluentResults;
 using Moq;
 
 namespace ClinicaX.Tests;
@@ -36,14 +35,15 @@ public class DashboardServiceTests
     public async Task GetDashboardAsync_DeveRetornarDashboard()
     {
         var servico = new Servico { Id = Guid.NewGuid(), Nome = "Consulta", Valor = 150 };
+        var pacienteId = Guid.NewGuid();
         var agendamento = new Agendamento
         {
             Id = Guid.NewGuid(),
             ClinicaId = _clinicaId,
             ServicoId = servico.Id,
-            PacienteId = Guid.NewGuid(),
-            DataHoraInicio = DateTime.UtcNow.AddHours(1),
-            DataHoraFim = DateTime.UtcNow.AddHours(2),
+            PacienteId = pacienteId,
+            DataHoraInicio = DateTime.Today.AddHours(10),
+            DataHoraFim = DateTime.Today.AddHours(11),
             Status = AgendamentoStatus.Agendado
         };
 
@@ -52,8 +52,8 @@ public class DashboardServiceTests
             .ReturnsAsync([agendamento]);
         _servicoRepoMock.Setup(r => r.GetAllAsync(_clinicaId, default)).ReturnsAsync([servico]);
         _pacienteRepoMock
-            .Setup(r => r.GetAllAsync(_clinicaId, null, 1, int.MaxValue, default))
-            .ReturnsAsync([new Paciente { Id = agendamento.PacienteId, Nome = "Ana" }]);
+            .Setup(r => r.GetByIdAndClinicaAsync(_clinicaId, pacienteId, default))
+            .ReturnsAsync(new Paciente { Id = pacienteId, Nome = "Ana" });
         _notificacaoRepoMock.Setup(r => r.CountPendentesAsync(_clinicaId, default)).ReturnsAsync(3);
 
         var result = await _service.GetDashboardAsync(_clinicaId);

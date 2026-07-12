@@ -16,6 +16,11 @@ public class Clinica : BaseEntity
     /// </summary>
     public string DiasFuncionamento { get; set; } = "1,2,3,4,5";
 
+    /// <summary>
+    /// Clínica de demonstração com dados mockados (seed). Contas reais gravam dados próprios.
+    /// </summary>
+    public bool IsDemo { get; set; }
+
     public bool OperaNoDia(DayOfWeek day)
     {
         if (string.IsNullOrWhiteSpace(DiasFuncionamento))

@@ -1,4 +1,5 @@
-import { Component, ElementRef, OnInit, OnDestroy, viewChild, signal, inject } from '@angular/core';
+import { Component, OnInit, signal, inject, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
@@ -487,48 +488,66 @@ import { AuthService } from '../../services/auth.service';
     }
   `],
 })
-export class LoginComponent implements OnInit, OnDestroy {
+export class LoginComponent implements OnInit {
   private authService = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);
+  private destroyRef = inject(DestroyRef);
 
   email = signal('');
   senha = signal('');
   loading = signal(false);
   error = signal('');
+  private demoAutoTried = false;
 
   ngOnInit() {
     if (this.authService.isAuthenticated()) {
-      this.router.navigate(['/dashboard']);
+      void this.router.navigateByUrl('/dashboard');
       return;
     }
-    this.route.queryParams.subscribe(params => {
-      if (params['demo'] === 'true') {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      if (params['demo'] === 'true' && !this.demoAutoTried && !this.loading()) {
+        this.demoAutoTried = true;
         this.fillDemo();
       }
     });
   }
 
-  ngOnDestroy() {}
-
   fillDemo() {
     this.email.set('demo@clinica.com');
-    this.senha.set('1234');
+    this.senha.set('Demo@1234');
     this.onSubmit();
   }
 
   onSubmit() {
+    if (this.loading()) return;
+    const email = this.email().trim();
+    const senha = this.senha();
+    if (!email || !senha) {
+      this.error.set('Informe e-mail e senha.');
+      return;
+    }
+
     this.loading.set(true);
     this.error.set('');
-    this.authService.login({ email: this.email(), senha: this.senha() }).subscribe({
+    this.authService.login({ email, senha }).subscribe({
       next: (response) => {
         this.authService.setSession(response);
-        this.router.navigate(['/dashboard']);
+        if (!this.authService.isAuthenticated()) {
+          this.loading.set(false);
+          this.error.set('Sessão não pôde ser iniciada. Tente novamente.');
+          return;
+        }
+        const returnUrl = this.route.snapshot.queryParamMap.get('returnUrl') || '/dashboard';
+        this.loading.set(false);
+        void this.router.navigateByUrl(returnUrl);
       },
       error: (err) => {
         this.loading.set(false);
         if (err.status === 401) {
-          this.error.set('Email ou senha inválidos.');
+          this.error.set(err?.error?.message || 'Email ou senha inválidos.');
+        } else if (err.status === 0) {
+          this.error.set('Não foi possível conectar à API. Verifique se o backend está rodando.');
         } else {
           this.error.set('Erro de conexão com o servidor. Tente novamente.');
         }

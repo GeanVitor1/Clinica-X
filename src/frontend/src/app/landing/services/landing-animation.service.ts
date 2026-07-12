@@ -15,7 +15,7 @@ export class LandingAnimationService {
     const obj = { val: 0 };
     gsap.to(obj, {
       val: target,
-      duration: 2,
+      duration: 0.6,
       ease: 'power2.out',
       onUpdate: () => {
         el.innerText = Math.round(obj.val).toString();
@@ -25,9 +25,14 @@ export class LandingAnimationService {
 
   staggerCards(cards: NodeListOf<Element>, fromVars: gsap.TweenVars, toVars: gsap.TweenVars) {
     ScrollTrigger.batch(cards as any, {
-      start: 'top 85%',
+      start: 'top 94%',
       onEnter: (batch) =>
-        gsap.fromTo(batch, fromVars, { ...toVars, stagger: 0.1 }),
+        gsap.fromTo(batch, fromVars, {
+          duration: 0.15,
+          ease: 'power2.out',
+          ...toVars,
+          stagger: 0.015,
+        }),
       once: true,
     });
   }

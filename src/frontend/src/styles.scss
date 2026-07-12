@@ -269,6 +269,11 @@
 html {
   scroll-behavior: smooth;
   -webkit-text-size-adjust: 100%;
+  color-scheme: light;
+}
+
+input, select, textarea {
+  color-scheme: light;
 }
 
 html,

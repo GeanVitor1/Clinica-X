@@ -23,7 +23,7 @@ export interface DashboardData {
   faturamentoMes: number;
   notificacoesPendentes: number;
   consultasHojeLista: AgendamentoDto[];
-  ocupacao: OcupacaoDto[];
+  ocupacaoSemana: OcupacaoDto[];
 }
 
 export interface EventoDto {
@@ -34,6 +34,16 @@ export interface EventoDto {
   pacienteNome: string | null;
 }
 
+export interface NotificacaoDto {
+  id: string;
+  tipo: string;
+  mensagem: string;
+  status: string;
+  lida: boolean;
+  criadoEm: string;
+  enviadaEm: string | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DashboardService extends ApiService {
   getDashboard() {
@@ -42,5 +52,9 @@ export class DashboardService extends ApiService {
 
   getTimeline() {
     return this.http.get<EventoDto[]>(`${this.baseUrl}/dashboard/timeline`);
+  }
+
+  getNotificacoes() {
+    return this.http.get<NotificacaoDto[]>(`${this.baseUrl}/notificacoes`);
   }
 }

@@ -16,6 +16,7 @@ public static class DependencyInjection
         services.AddScoped<IAgendamentoService, AgendamentoService>();
         services.AddScoped<IProntuarioService, ProntuarioService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<IModulosService, ModulosService>();
         TypeAdapterConfig.GlobalSettings.Default.MapToConstructor(true);
         return services;
     }

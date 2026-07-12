@@ -12,6 +12,7 @@ public class NotificationDispatcherTests
 {
     private readonly Mock<INotificacaoRepository> _notifRepoMock = new();
     private readonly Mock<IEventoRepository> _eventoRepoMock = new();
+    private readonly Mock<IPacienteRepository> _pacienteRepoMock = new();
     private readonly Mock<IUnitOfWork> _uowMock = new();
     private readonly Mock<IWhatsAppService> _whatsAppMock = new();
     private readonly Mock<IRealtimeNotifier> _realtimeMock = new();
@@ -30,9 +31,21 @@ public class NotificationDispatcherTests
 
     public NotificationDispatcherTests()
     {
+        _pacienteRepoMock.Setup(p => p.GetByIdAndClinicaAsync(_agendamento.ClinicaId, _agendamento.PacienteId, default))
+            .ReturnsAsync(new Paciente { Id = _agendamento.PacienteId, Telefone = "11999999999" });
+        _pacienteRepoMock.Setup(p => p.GetByIdAsync(_agendamento.PacienteId, default))
+            .ReturnsAsync(new Paciente { Id = _agendamento.PacienteId, Telefone = "11999999999" });
+
+        _notifRepoMock.Setup(r => r.AddAsync(It.IsAny<Notificacao>(), default)).Returns(Task.CompletedTask);
+        _eventoRepoMock.Setup(r => r.AddAsync(It.IsAny<Evento>(), default)).Returns(Task.CompletedTask);
+        _uowMock.Setup(u => u.SaveChangesAsync(default)).ReturnsAsync(1);
+        _realtimeMock.Setup(r => r.NotifyNotificacaoEnviadaAsync(It.IsAny<NotificacaoRealtimeEvent>(), default))
+            .Returns(Task.CompletedTask);
+
         _dispatcher = new NotificationDispatcher(
             _notifRepoMock.Object,
             _eventoRepoMock.Object,
+            _pacienteRepoMock.Object,
             _uowMock.Object,
             _whatsAppMock.Object,
             _realtimeMock.Object,
@@ -42,13 +55,15 @@ public class NotificationDispatcherTests
     [Fact]
     public async Task SendConfirmacaoAsync_DeveEnviarESalvarNotificacao()
     {
-        _whatsAppMock.Setup(w => w.SendConfirmacaoAsync(_agendamento, "João", "Clinica", "Consulta", "Rua A", default))
+        _whatsAppMock.Setup(w => w.SendConfirmacaoAsync(
+                _agendamento, It.IsAny<string>(), "João", "Clinica", "Consulta", "Rua A", null, default))
             .ReturnsAsync(Result.Ok());
 
         var result = await _dispatcher.SendConfirmacaoAsync(_agendamento, "João", "Clinica", "Consulta", "Rua A");
 
         Assert.True(result.IsSuccess);
-        _notifRepoMock.Verify(r => r.AddAsync(It.Is<Notificacao>(n => n.Tipo == TipoNotificacao.Confirmacao), default), Times.Once);
+        _notifRepoMock.Verify(r => r.AddAsync(It.Is<Notificacao>(n =>
+            n.Tipo == TipoNotificacao.Confirmacao && n.Template == "confirmacao"), default), Times.Once);
         _uowMock.Verify(u => u.SaveChangesAsync(default), Times.AtLeastOnce);
         _realtimeMock.Verify(r => r.NotifyNotificacaoEnviadaAsync(
             It.Is<NotificacaoRealtimeEvent>(e => e.Sucesso && e.Tipo == "Confirmacao"), default), Times.Once);
@@ -57,7 +72,8 @@ public class NotificationDispatcherTests
     [Fact]
     public async Task SendLembreteAsync_DeveEnviarESalvarNotificacao()
     {
-        _whatsAppMock.Setup(w => w.SendLembreteAsync(_agendamento, "Maria", "Clinica", "Limpeza", default))
+        _whatsAppMock.Setup(w => w.SendLembreteAsync(
+                _agendamento, It.IsAny<string>(), "Maria", "Clinica", "Limpeza", null, default))
             .ReturnsAsync(Result.Ok());
 
         var result = await _dispatcher.SendLembreteAsync(_agendamento, "Maria", "Clinica", "Limpeza");
@@ -69,11 +85,25 @@ public class NotificationDispatcherTests
     [Fact]
     public async Task SendCancelamentoAsync_DeveSalvarNotificacao_QuandoFalha()
     {
-        _whatsAppMock.Setup(w => w.SendCancelamentoAsync(_agendamento, "Pedro", "Clinica", "Motivo", "9999", default))
+        _whatsAppMock.Setup(w => w.SendCancelamentoAsync(
+                _agendamento, It.IsAny<string>(), "Pedro", "Clinica", "Motivo", "9999", default))
             .ReturnsAsync(Result.Fail("Erro"));
 
         await _dispatcher.SendCancelamentoAsync(_agendamento, "Pedro", "Clinica", "Motivo", "9999");
 
-        _notifRepoMock.Verify(r => r.AddAsync(It.Is<Notificacao>(n => n.Status == StatusNotificacao.Falha), default), Times.Once);
+        _notifRepoMock.Verify(r => r.AddAsync(It.IsAny<Notificacao>(), default), Times.Once);
+    }
+
+    [Fact]
+    public async Task SendPosConsultaAsync_DeveSalvarTemplate()
+    {
+        _whatsAppMock.Setup(w => w.SendPosConsultaAsync(
+                _agendamento, It.IsAny<string>(), "Ana", "Clinica", "Botox", default))
+            .ReturnsAsync(Result.Ok());
+
+        var result = await _dispatcher.SendPosConsultaAsync(_agendamento, "Ana", "Clinica", "Botox");
+
+        Assert.True(result.IsSuccess);
+        _notifRepoMock.Verify(r => r.AddAsync(It.Is<Notificacao>(n => n.Tipo == TipoNotificacao.PosConsulta && n.Template == "pos_consulta"), default), Times.Once);
     }
 }

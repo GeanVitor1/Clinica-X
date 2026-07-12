@@ -24,7 +24,7 @@ import { RouterLink } from '@angular/router';
           <div class="demo-creds">
             <span>demo&#64;clinica.com</span>
             <span class="sep">·</span>
-            <span>senha 1234</span>
+            <span>senha Demo@1234</span>
           </div>
         </div>
       </div>

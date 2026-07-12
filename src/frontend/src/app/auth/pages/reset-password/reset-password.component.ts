@@ -15,12 +15,15 @@ import { AuthService } from '../../services/auth.service';
 
         @if (done()) {
           <p class="success">Senha redefinida com sucesso!</p>
-          <a routerLink="/auth/login" class="back">Ir para o login</a>
+          <div class="back-row">
+            <a routerLink="/auth/login" [replaceUrl]="true" class="back">Ir para o login</a>
+            <a routerLink="/" class="back">Voltar ao início</a>
+          </div>
         } @else {
           <form (ngSubmit)="submit()" class="form">
             <div class="field">
               <label for="senha">Nova senha</label>
-              <input id="senha" type="password" [(ngModel)]="novaSenha" name="senha" required minlength="4" />
+              <input id="senha" type="password" [(ngModel)]="novaSenha" name="senha" required minlength="8" />
             </div>
             <div class="field">
               <label for="confirma">Confirmar senha</label>
@@ -75,7 +78,8 @@ import { AuthService } from '../../services/auth.service';
     .btn-primary:disabled { opacity: 0.6; }
     .error { color: var(--clx-error); font-size: 0.85rem; padding: 12px; background: rgba(220, 38, 38, 0.06); border-radius: var(--clx-radius-xs); border: 1px solid rgba(220, 38, 38, 0.12); }
     .success { color: var(--clx-success); font-size: 0.85rem; margin-bottom: 16px; padding: 12px; background: rgba(5, 150, 105, 0.06); border-radius: var(--clx-radius-xs); border: 1px solid rgba(5, 150, 105, 0.12); }
-    .back { display: inline-block; margin-top: 20px; color: var(--clx-accent); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
+    .back-row { display: flex; flex-wrap: wrap; gap: 12px 18px; margin-top: 20px; }
+    .back { display: inline-block; color: var(--clx-accent); text-decoration: none; font-size: 0.9rem; font-weight: 500; transition: color 0.2s; }
     .back:hover { color: var(--clx-accent-light); }
   `],
 })
@@ -103,7 +107,7 @@ export class ResetPasswordComponent implements OnInit {
   submit() {
     if (!this.email || !this.token) return;
     if (this.novaSenha.length < 4) {
-      this.error.set('A senha deve ter no mínimo 4 caracteres.');
+      this.error.set('A senha deve ter no mínimo 8 caracteres, com maiúscula, minúscula, número e especial.');
       return;
     }
     if (this.novaSenha !== this.confirma) {

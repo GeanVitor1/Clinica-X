@@ -1,5 +1,7 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
 import Lenis from 'lenis';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { NavbarComponent } from '../components/navbar/navbar.component';
 import { HeroComponent } from '../components/hero/hero.component';
 import { HowItWorksComponent } from '../components/how-it-works/how-it-works.component';
@@ -202,20 +204,42 @@ import { FooterComponent } from '../components/footer/footer.component';
 })
 export class LandingPageComponent implements OnInit, OnDestroy {
   private lenis: Lenis | null = null;
+  private tickerFn: ((time: number) => void) | null = null;
 
   ngOnInit() {
+    gsap.registerPlugin(ScrollTrigger);
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (!prefersReduced) {
-      this.lenis = new Lenis({ duration: 1.2, easing: (t: number) => Math.min(1, 1 - Math.pow(1 - t, 3)) });
-      const raf = (time: number) => {
-        this.lenis?.raf(time);
-        requestAnimationFrame(raf);
+      this.lenis = new Lenis({
+        duration: 0.55,
+        easing: (t: number) => Math.min(1, 1 - Math.pow(1 - t, 3)),
+        // Mantém o scroll nativo sincronizado → ScrollTrigger enxerga o movimento
+        syncTouch: true,
+      });
+
+      // Sem isso, GSAP/ScrollTrigger não “vê” o Lenis e seções ficam com opacity:0
+      this.lenis.on('scroll', ScrollTrigger.update);
+
+      this.tickerFn = (time: number) => {
+        this.lenis?.raf(time * 1000);
       };
-      requestAnimationFrame(raf);
+      gsap.ticker.add(this.tickerFn);
+      gsap.ticker.lagSmoothing(0);
+
+      // Recalcula triggers após layout/imagens
+      requestAnimationFrame(() => ScrollTrigger.refresh());
+      setTimeout(() => ScrollTrigger.refresh(), 400);
+      setTimeout(() => ScrollTrigger.refresh(), 1200);
     }
   }
 
   ngOnDestroy() {
+    if (this.tickerFn) {
+      gsap.ticker.remove(this.tickerFn);
+      this.tickerFn = null;
+    }
     this.lenis?.destroy();
+    this.lenis = null;
+    ScrollTrigger.getAll().forEach((t) => t.kill());
   }
 }

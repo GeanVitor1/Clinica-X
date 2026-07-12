@@ -33,13 +33,19 @@ interface FeatureItem {
 
         <div class="features-list">
           @for (feature of features; track feature.demoType; let i = $index; let last = $last) {
-            <div
+            <article
               class="feature-block"
               [class.reverse]="i % 2 !== 0"
               appAnimateOnScroll="stagger"
               [style.--feature-accent]="feature.accent"
             >
               <div class="feature-text">
+                <div class="feature-kicker anim-stagger">
+                  <span class="feature-index">{{ (i + 1).toString().padStart(2, '0') }}</span>
+                  <span class="feature-kicker-line"></span>
+                  <span class="feature-kicker-label">Módulo</span>
+                </div>
+
                 <div class="feature-icon-wrap anim-stagger" [innerHTML]="feature.icon"></div>
                 <h3 class="anim-stagger">{{ feature.title }}</h3>
                 <p class="feature-desc anim-stagger">{{ feature.description }}</p>
@@ -48,7 +54,7 @@ interface FeatureItem {
                   @for (check of feature.checks; track check) {
                     <div class="fc-item anim-stagger">
                       <div class="fc-check">
-                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                       </div>
                       <span>{{ check }}</span>
                     </div>
@@ -65,7 +71,7 @@ interface FeatureItem {
               <div class="feature-media">
                 <app-feature-card [demoType]="feature.demoType" />
               </div>
-            </div>
+            </article>
 
             @if (!last) {
               <div class="feature-divider" appAnimateOnScroll aria-hidden="true">
@@ -91,9 +97,10 @@ interface FeatureItem {
   styles: [`
     .features {
       position: relative;
-      padding: 120px 0;
+      padding: 100px 0;
       background: transparent;
-      overflow: hidden;
+      overflow: visible;
+      overflow-anchor: none;
     }
     .features-bg {
       position: absolute;
@@ -122,57 +129,108 @@ interface FeatureItem {
     }
     .section-head {
       text-align: center;
-      max-width: 600px;
-      margin: 0 auto 70px;
+      max-width: 620px;
+      margin: 0 auto 72px;
     }
     .section-label {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
+      font-weight: 700;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--clx-accent);
       margin-bottom: 14px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--clx-accent) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--clx-accent) 18%, transparent);
     }
     .section-head h2 {
-      font-size: clamp(1.6rem, 3vw, 2.2rem);
-      font-weight: 750;
+      font-size: clamp(1.7rem, 3.2vw, 2.35rem);
+      font-weight: 800;
       color: var(--clx-text);
-      letter-spacing: -0.03em;
+      letter-spacing: -0.04em;
       margin-bottom: 14px;
+      line-height: 1.15;
     }
     .section-head p {
-      font-size: 0.95rem;
+      font-size: 1rem;
       color: var(--clx-text-muted);
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .features-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
     }
 
     .feature-block {
       --feature-accent: var(--clx-accent);
       display: flex;
-      align-items: center;
-      gap: 64px;
-      padding: 12px 0;
+      align-items: flex-start;
+      gap: 48px;
+      padding: 36px 0;
+      margin: 0;
+      overflow: visible;
+      overflow-anchor: none;
     }
     .feature-block.reverse { flex-direction: row-reverse; }
 
-    .feature-text { flex: 0 0 360px; }
+    .feature-text {
+      flex: 0 0 340px;
+      max-width: 340px;
+      padding-top: 8px;
+    }
+
+    .feature-kicker {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .feature-index {
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      color: var(--feature-accent);
+      font-variant-numeric: tabular-nums;
+    }
+    .feature-kicker-line {
+      width: 28px;
+      height: 2px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--feature-accent), transparent);
+    }
+    .feature-kicker-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--clx-text-muted);
+    }
 
     .feature-icon-wrap {
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
+      width: 60px;
+      height: 60px;
+      border-radius: 18px;
       background:
-        linear-gradient(145deg, color-mix(in srgb, var(--feature-accent) 16%, transparent), color-mix(in srgb, var(--feature-accent) 6%, transparent));
-      border: 1px solid color-mix(in srgb, var(--feature-accent) 22%, transparent);
+        linear-gradient(145deg,
+          color-mix(in srgb, var(--feature-accent) 22%, #fff),
+          color-mix(in srgb, var(--feature-accent) 10%, transparent));
+      border: 1px solid color-mix(in srgb, var(--feature-accent) 28%, transparent);
       display: flex;
       align-items: center;
       justify-content: center;
       color: var(--feature-accent);
       margin-bottom: 18px;
       box-shadow:
-        0 1px 0 rgba(255,255,255,0.06) inset,
-        0 8px 20px color-mix(in srgb, var(--feature-accent) 12%, transparent);
-      transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 280ms ease;
+        0 1px 0 rgba(255,255,255,0.55) inset,
+        0 10px 24px color-mix(in srgb, var(--feature-accent) 18%, transparent);
+      transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 160ms ease;
     }
     .feature-icon-wrap ::ng-deep svg {
       width: 28px;
@@ -180,78 +238,118 @@ interface FeatureItem {
       display: block;
     }
     .feature-block:hover .feature-icon-wrap {
-      transform: translateY(-2px) scale(1.04);
+      transform: translateY(-3px) scale(1.05);
       box-shadow:
-        0 1px 0 rgba(255,255,255,0.08) inset,
-        0 12px 28px color-mix(in srgb, var(--feature-accent) 22%, transparent);
+        0 1px 0 rgba(255,255,255,0.65) inset,
+        0 14px 32px color-mix(in srgb, var(--feature-accent) 28%, transparent);
     }
     .feature-text h3 {
-      font-size: 1.3rem;
-      font-weight: 700;
+      font-size: clamp(1.35rem, 2.2vw, 1.55rem);
+      font-weight: 800;
       color: var(--clx-text);
-      margin-bottom: 10px;
-      letter-spacing: -0.02em;
+      margin: 0 0 12px;
+      letter-spacing: -0.035em;
+      line-height: 1.15;
     }
     .feature-desc {
-      font-size: 0.9rem;
+      font-size: 0.95rem;
       color: var(--clx-text-muted);
       line-height: 1.7;
-      margin-bottom: 20px;
+      margin: 0 0 22px;
+      max-width: 34ch;
     }
 
     .feature-checks {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 8px;
       margin-bottom: 18px;
     }
     .fc-item {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.42), rgba(255,255,255,0.16));
+      border: 1px solid color-mix(in srgb, var(--feature-accent) 14%, var(--clx-border));
+      box-shadow: 0 1px 0 rgba(255,255,255,0.35) inset;
+      transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+    }
+    .fc-item:hover {
+      border-color: color-mix(in srgb, var(--feature-accent) 32%, transparent);
+      transform: translateX(3px);
+      box-shadow:
+        0 1px 0 rgba(255,255,255,0.4) inset,
+        0 8px 18px color-mix(in srgb, var(--feature-accent) 10%, transparent);
     }
     .fc-check {
-      width: 22px;
-      height: 22px;
-      border-radius: 7px;
-      background: color-mix(in srgb, var(--feature-accent) 12%, transparent);
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      background: linear-gradient(145deg, color-mix(in srgb, var(--feature-accent) 22%, #fff), color-mix(in srgb, var(--feature-accent) 12%, transparent));
+      border: 1px solid color-mix(in srgb, var(--feature-accent) 28%, transparent);
       display: flex;
       align-items: center;
       justify-content: center;
       color: var(--feature-accent);
       flex-shrink: 0;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset;
     }
     .fc-item span {
-      font-size: 0.85rem;
-      font-weight: 500;
+      font-size: 0.86rem;
+      font-weight: 600;
       color: var(--clx-text);
+      letter-spacing: -0.01em;
+      line-height: 1.35;
     }
 
     .feature-details {
       display: flex;
-      gap: 6px;
+      gap: 8px;
       flex-wrap: wrap;
     }
     .fd-tag {
-      padding: 4px 10px;
-      border-radius: 8px;
-      background: var(--clx-bg-soft);
-      border: 1px solid var(--clx-border);
+      padding: 5px 11px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--feature-accent) 10%, rgba(255,255,255,0.45));
+      border: 1px solid color-mix(in srgb, var(--feature-accent) 22%, transparent);
       font-size: 0.68rem;
-      color: var(--clx-text-muted);
-      font-weight: 500;
+      color: color-mix(in srgb, var(--feature-accent) 70%, var(--clx-text));
+      font-weight: 700;
+      letter-spacing: 0.02em;
     }
 
     .feature-media {
-      flex: 1;
+      flex: 1 1 auto;
       min-width: 0;
+      height: auto;
+      max-height: none;
+      overflow: visible;
+      overflow-anchor: none;
+      contain: layout style;
     }
 
-    .feature-divider { padding: 40px 0; }
+    .feature-media ::ng-deep app-feature-card {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .feature-divider {
+      padding: 0;
+      margin: 0;
+      line-height: 0;
+    }
     .fd-line {
       display: block;
       height: 1px;
-      background: linear-gradient(90deg, transparent, var(--clx-border), transparent);
+      background: linear-gradient(
+        90deg,
+        transparent,
+        color-mix(in srgb, var(--clx-accent) 35%, var(--clx-border)),
+        transparent
+      );
     }
 
     .features-cta {
@@ -260,59 +358,71 @@ interface FeatureItem {
       justify-content: space-between;
       gap: 28px;
       margin-top: 64px;
-      padding: 32px 36px;
+      padding: 34px 38px;
       background:
-        radial-gradient(ellipse 70% 100% at 0% 50%, rgba(35, 75, 160, 0.16), transparent 55%),
-        linear-gradient(135deg, #b6cae4 0%, #a4bbda 100%);
-      border: 1px solid rgba(20, 45, 90, 0.2);
-      border-radius: 16px;
+        radial-gradient(ellipse 70% 100% at 0% 50%, color-mix(in srgb, var(--clx-accent) 22%, transparent), transparent 55%),
+        linear-gradient(135deg, #b9cce8 0%, #a6bddc 100%);
+      border: 1px solid rgba(20, 45, 90, 0.18);
+      border-radius: 20px;
       box-shadow:
-        0 0 0 1px rgba(255, 255, 255, 0.18) inset,
-        0 10px 28px rgba(20, 42, 85, 0.14);
+        0 0 0 1px rgba(255, 255, 255, 0.28) inset,
+        0 12px 32px rgba(20, 42, 85, 0.14);
     }
     .features-cta-copy { max-width: 420px; }
     .features-cta h3 {
-      font-size: 1.15rem;
-      font-weight: 700;
+      font-size: 1.2rem;
+      font-weight: 800;
       color: var(--clx-text);
       margin-bottom: 6px;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
     }
     .features-cta p {
-      font-size: 0.9rem;
+      font-size: 0.92rem;
       color: var(--clx-text-muted);
-      line-height: 1.5;
+      line-height: 1.55;
+      margin: 0;
     }
     .btn-cta {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 13px 26px;
-      border-radius: 12px;
-      background: var(--clx-accent);
+      padding: 14px 26px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--clx-accent), #2a56d4);
       color: #fff;
-      font-size: 0.92rem;
-      font-weight: 600;
+      font-size: 0.94rem;
+      font-weight: 700;
       text-decoration: none;
       box-shadow:
-        0 1px 0 rgba(255,255,255,0.12) inset,
-        0 6px 20px rgba(59, 110, 245, 0.28);
-      transition: transform 220ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 220ms ease;
+        0 1px 0 rgba(255,255,255,0.18) inset,
+        0 8px 22px rgba(59, 110, 245, 0.32);
+      transition: transform 150ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 150ms ease;
     }
     .btn-cta:hover {
       transform: translateY(-2px);
       box-shadow:
-        0 1px 0 rgba(255,255,255,0.14) inset,
-        0 10px 28px rgba(59, 110, 245, 0.36);
+        0 1px 0 rgba(255,255,255,0.2) inset,
+        0 12px 30px rgba(59, 110, 245, 0.4);
     }
 
     @media (max-width: 860px) {
       .feature-block {
         flex-direction: column !important;
-        gap: 28px;
+        align-items: stretch;
+        gap: 18px;
+        padding: 28px 0;
       }
-      .feature-text { flex: none; width: 100%; }
-      .feature-media { width: 100%; }
+      .feature-text {
+        flex: none;
+        width: 100%;
+        max-width: none;
+      }
+      .feature-desc { max-width: none; }
+      .feature-media {
+        width: 100%;
+        height: auto;
+        max-height: none;
+      }
       .features-cta {
         flex-direction: column;
         align-items: flex-start;

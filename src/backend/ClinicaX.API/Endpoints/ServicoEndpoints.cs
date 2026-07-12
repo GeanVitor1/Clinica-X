@@ -24,22 +24,23 @@ public static class ServicoEndpoints
             if (!validation.IsValid) return Results.ValidationProblem(validation.ToDictionary());
             var clinicaId = GetClinicaId(ctx);
             var result = await service.CreateAsync(clinicaId, request);
-            return result.IsSuccess ? Results.Created($"/api/servicos/{result.Value.Id}", result.Value) : Results.BadRequest(result.Errors);
+            return result.IsSuccess
+                ? Results.Created($"/api/servicos/{result.Value.Id}", result.Value)
+                : Results.BadRequest(new { message = string.Join("; ", result.Errors.Select(e => e.Message)) });
         });
 
-        group.MapPut("/{id:guid}", async (Guid id, UpdateServicoRequest request, IServicoService service, IValidator<UpdateServicoRequest> validator) =>
+        group.MapPut("/{id:guid}", async (Guid id, UpdateServicoRequest request, IServicoService service, IValidator<UpdateServicoRequest> validator, HttpContext ctx) =>
         {
             var validation = await validator.ValidateAsync(request);
             if (!validation.IsValid) return Results.ValidationProblem(validation.ToDictionary());
-            var result = await service.UpdateAsync(id, request);
+            var result = await service.UpdateAsync(GetClinicaId(ctx), id, request);
             return result.IsSuccess ? Results.Ok(result.Value) : Results.NotFound();
         });
 
-        group.MapDelete("/{id:guid}", async (Guid id, IServicoService service) =>
+        group.MapDelete("/{id:guid}", async (Guid id, IServicoService service, HttpContext ctx) =>
         {
-            var result = await service.DeleteAsync(id);
+            var result = await service.DeleteAsync(GetClinicaId(ctx), id);
             return result.IsSuccess ? Results.NoContent() : Results.NotFound();
         });
     }
-
 }

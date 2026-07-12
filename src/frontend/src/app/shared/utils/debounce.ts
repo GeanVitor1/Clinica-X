@@ -1,16 +1,17 @@
 import { DestroyRef, Signal, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { Observable, Subject, debounceTime, switchMap, tap } from 'rxjs';
+import { Observable, Subject, debounceTime, switchMap, tap, catchError, of } from 'rxjs';
 
 /**
  * Debounce de busca (padrão 300ms) com switchMap para cancelar requisições anteriores.
- * Uso: const { setQuery, loading } = debounceSearch(q => service.getAll(q), (res) => items.set(res.items));
+ * Erros HTTP não matam o stream (catchError no switchMap).
  */
 export function debounceSearch$<T>(
   searchFn: (query: string) => Observable<T>,
   onResult: (result: T) => void,
   delay = 300,
-  destroyRef?: DestroyRef
+  destroyRef?: DestroyRef,
+  onError?: () => void
 ): { setQuery: (q: string) => void; loading: Signal<boolean> } {
   const destroy = destroyRef ?? inject(DestroyRef);
   const loading = signal(false);
@@ -20,15 +21,22 @@ export function debounceSearch$<T>(
     .pipe(
       debounceTime(delay),
       tap(() => loading.set(true)),
-      switchMap(q => searchFn(q)),
+      switchMap((q) =>
+        searchFn(q).pipe(
+          catchError(() => {
+            loading.set(false);
+            onError?.();
+            return of(null as T | null);
+          })
+        )
+      ),
       takeUntilDestroyed(destroy)
     )
     .subscribe({
-      next: result => {
+      next: (result) => {
         loading.set(false);
-        onResult(result);
+        if (result != null) onResult(result);
       },
-      error: () => loading.set(false),
     });
 
   return {
@@ -48,10 +56,13 @@ export function debounceSearch<T>(
   const results = toSignal(
     search$.pipe(
       debounceTime(delay),
-      switchMap(q => new Observable<T[]>(sub => {
-        sub.next(searchFn(q));
-        sub.complete();
-      }))
+      switchMap(
+        (q) =>
+          new Observable<T[]>((sub) => {
+            sub.next(searchFn(q));
+            sub.complete();
+          })
+      )
     ),
     { initialValue: searchFn('') }
   );

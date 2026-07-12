@@ -4,9 +4,15 @@ bin/
 obj/
 *.log
 .env
+.env.local
 .DS_Store
 Thumbs.db
 .vs/
 *.suo
 *.user
 *.userprefs
+.opencode/
+api-out.txt
+api-err.txt
+*.swp
+.idea/

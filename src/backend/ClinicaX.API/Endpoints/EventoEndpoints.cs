@@ -16,11 +16,10 @@ public static class EventoEndpoints
             return Results.Ok(list);
         });
 
-        group.MapGet("/paciente/{pacienteId:guid}", async (Guid pacienteId, IEventoRepository repo) =>
+        group.MapGet("/paciente/{pacienteId:guid}", async (Guid pacienteId, IEventoRepository repo, HttpContext ctx) =>
         {
-            var list = await repo.GetByPacienteAsync(pacienteId);
+            var list = await repo.GetByPacienteAndClinicaAsync(GetClinicaId(ctx), pacienteId);
             return Results.Ok(list);
         });
     }
-
 }

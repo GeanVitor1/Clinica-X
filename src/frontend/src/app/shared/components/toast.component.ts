@@ -97,10 +97,12 @@ import { ToastService } from '../services/toast.service';
 export class ToastContainerComponent {
   protected readonly toastService = inject(ToastService);
 
+  private prevCount = 0;
+
   constructor() {
     effect(() => {
       const toasts = this.toastService.toasts();
-      if (toasts.length > 0) {
+      if (toasts.length > this.prevCount) {
         requestAnimationFrame(() => {
           const container = document.querySelector('.toast-container');
           if (container) {
@@ -111,6 +113,7 @@ export class ToastContainerComponent {
           }
         });
       }
+      this.prevCount = toasts.length;
     });
   }
 

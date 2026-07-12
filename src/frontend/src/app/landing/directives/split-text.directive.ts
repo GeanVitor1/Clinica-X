@@ -21,9 +21,9 @@ export class SplitTextDirective implements AfterViewInit {
         opacity: 1,
         y: 0,
         rotateX: 0,
-        duration: 0.8,
-        stagger: 0.08,
-        ease: 'power3.out',
+        duration: 0.22,
+        stagger: 0.018,
+        ease: 'power2.out',
       }
     );
   }

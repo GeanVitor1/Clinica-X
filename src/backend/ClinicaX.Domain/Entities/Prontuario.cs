@@ -9,6 +9,10 @@ public class Prontuario : BaseEntity
     public string? Descricao { get; set; }
     public string? Diagnostico { get; set; }
     public string? Prescricao { get; set; }
+    /// <summary>Evolução clínica (texto livre).</summary>
+    public string? Evolucao { get; set; }
+    public string? Especialidade { get; set; }
+    public DateTime? AtualizadoEm { get; set; }
 
     public List<Anexo> Anexos { get; set; } = [];
 }

@@ -1,4 +1,6 @@
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using ClinicaX.Domain.Entities;
 using FluentResults;
 using Microsoft.Extensions.Configuration;
@@ -27,58 +29,75 @@ public class WhatsAppCloudApiService : IWhatsAppService
         _baseUrl = secao["BaseUrl"] ?? "https://graph.facebook.com/v21.0";
     }
 
-    public async Task<Result> SendConfirmacaoAsync(Agendamento agendamento, string pacienteNome, string clinicaNome, string servicoNome, string clinicaEndereco, CancellationToken ct = default)
+    public Task<Result> SendConfirmacaoAsync(Agendamento agendamento, string telefoneDestino, string pacienteNome, string clinicaNome, string servicoNome, string clinicaEndereco, string? linkConfirmacao = null, CancellationToken ct = default)
     {
-        var msg = $"Olá {pacienteNome}! Sua consulta foi agendada na {clinicaNome} 📅\nDia: {agendamento.DataHoraInicio:dd/MM/yyyy} às {agendamento.DataHoraInicio:HH:mm}\nServiço: {servicoNome}\nEndereço: {clinicaEndereco}\nQualquer imprevisto, avisamos por aqui. 😊";
-        return await SendAsync(msg, ct);
+        var msg = WhatsAppSimuladoService.BuildConfirmacao(pacienteNome, clinicaNome, servicoNome, agendamento.DataHoraInicio, clinicaEndereco, linkConfirmacao);
+        return SendAsync(telefoneDestino, msg, ct);
     }
 
-    public async Task<Result> SendLembreteAsync(Agendamento agendamento, string pacienteNome, string clinicaNome, string servicoNome, CancellationToken ct = default)
+    public Task<Result> SendLembreteAsync(Agendamento agendamento, string telefoneDestino, string pacienteNome, string clinicaNome, string servicoNome, string? linkConfirmacao = null, CancellationToken ct = default)
     {
-        var hoje = agendamento.DataHoraInicio.Date == DateTime.UtcNow.Date ? "hoje" : "amanhã";
-        var msg = $"Lembrete! Sua consulta na {clinicaNome} é {hoje} às {agendamento.DataHoraInicio:HH:mm} ⏰\nPaciente: {pacienteNome}\nServiço: {servicoNome}\nConfirme presença respondendo \"OK\" ou cancele respondendo \"CANCELAR\".\nEstamos te esperando! 🦷";
-        return await SendAsync(msg, ct);
+        var msg = WhatsAppSimuladoService.BuildLembrete(pacienteNome, clinicaNome, servicoNome, agendamento.DataHoraInicio, linkConfirmacao);
+        return SendAsync(telefoneDestino, msg, ct);
     }
 
-    public async Task<Result> SendCancelamentoAsync(Agendamento agendamento, string pacienteNome, string clinicaNome, string motivo, string telefone, CancellationToken ct = default)
+    public Task<Result> SendCancelamentoAsync(Agendamento agendamento, string telefoneDestino, string pacienteNome, string clinicaNome, string motivo, string telefoneClinica, CancellationToken ct = default)
     {
-        var msg = $"Olá {pacienteNome}, infelizmente sua consulta do dia {agendamento.DataHoraInicio:dd/MM/yyyy} às {agendamento.DataHoraInicio:HH:mm} na {clinicaNome} precisou ser cancelada. ❌\nMotivo: {motivo}\nEntre em contato para reagendar: {telefone}\nDesculpe pelo transtorno!";
-        return await SendAsync(msg, ct);
+        var msg = $"Olá {pacienteNome}, consulta do dia {agendamento.DataHoraInicio:dd/MM/yyyy HH:mm} em {clinicaNome} cancelada. Motivo: {motivo}. Contato: {telefoneClinica}";
+        return SendAsync(telefoneDestino, msg, ct);
     }
 
-    public async Task<Result> SendRemarcacaoAsync(Agendamento agendamento, DateTime novaData, string pacienteNome, string clinicaNome, string clinicaEndereco, CancellationToken ct = default)
+    public Task<Result> SendRemarcacaoAsync(Agendamento agendamento, string telefoneDestino, DateTime novaData, string pacienteNome, string clinicaNome, string clinicaEndereco, string? linkConfirmacao = null, CancellationToken ct = default)
     {
-        var msg = $"Olá {pacienteNome}, sua consulta foi reagendada 📅\nNova data: {novaData:dd/MM/yyyy} às {novaData:HH:mm}\nLocal: {clinicaNome} — {clinicaEndereco}\nSe tiver algum problema, é só nos avisar.\nConfirmado? 😊";
-        return await SendAsync(msg, ct);
+        var msg = $"Olá {pacienteNome}, consulta remarcada para {novaData:dd/MM/yyyy HH:mm} em {clinicaNome} — {clinicaEndereco}."
+                  + (string.IsNullOrEmpty(linkConfirmacao) ? "" : $" Confirme: {linkConfirmacao}");
+        return SendAsync(telefoneDestino, msg, ct);
     }
 
-    private async Task<Result> SendAsync(string mensagem, CancellationToken ct)
+    public Task<Result> SendPosConsultaAsync(Agendamento agendamento, string telefoneDestino, string pacienteNome, string clinicaNome, string servicoNome, CancellationToken ct = default)
+    {
+        var msg = $"Olá {pacienteNome}! Obrigado por comparecer à {clinicaNome} ({servicoNome}). Como se sentiu? Responda se tiver dúvidas.";
+        return SendAsync(telefoneDestino, msg, ct);
+    }
+
+    public Task<Result> SendMensagemCustomAsync(string telefone, string mensagem, CancellationToken ct = default)
+        => SendAsync(telefone, mensagem, ct);
+
+    private async Task<Result> SendAsync(string? telefone, string mensagem, CancellationToken ct)
     {
         try
         {
             if (string.IsNullOrEmpty(_phoneNumberId) || string.IsNullOrEmpty(_accessToken))
             {
-                _logger.LogWarning("[WhatsApp] Credenciais não configuradas. Simulando envio.");
-                await Task.Delay(100, ct);
-                _logger.LogInformation("[WhatsApp SIMULADO] Mensagem: {Msg}", mensagem);
+                _logger.LogWarning("[WhatsApp] Credenciais não configuradas. Simulando envio para {Telefone}.", telefone ?? "(sem telefone)");
+                _logger.LogInformation("[WhatsApp FALLBACK] {Msg}", mensagem);
                 return Result.Ok();
+            }
+
+            var to = NormalizePhone(telefone);
+            if (string.IsNullOrEmpty(to))
+            {
+                _logger.LogError("[WhatsApp REAL] Telefone de destino ausente ou inválido: {Telefone}", telefone);
+                return Result.Fail("Telefone de destino inválido para envio WhatsApp.");
             }
 
             var payload = new
             {
                 messaging_product = "whatsapp",
-                to = "",  // preencher com número do paciente
+                to,
                 type = "text",
                 text = new { body = mensagem }
             };
 
-            var response = await _httpClient.PostAsJsonAsync(
-                $"{_baseUrl}/{_phoneNumberId}/messages?access_token={_accessToken}",
-                payload, ct);
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{_baseUrl}/{_phoneNumberId}/messages");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _accessToken);
+            request.Content = JsonContent.Create(payload);
+
+            var response = await _httpClient.SendAsync(request, ct);
 
             if (response.IsSuccessStatusCode)
             {
-                _logger.LogInformation("[WhatsApp REAL] Mensagem enviada com sucesso");
+                _logger.LogInformation("[WhatsApp REAL] Mensagem enviada para {To}", to);
                 return Result.Ok();
             }
 
@@ -91,5 +110,15 @@ public class WhatsAppCloudApiService : IWhatsAppService
             _logger.LogError(ex, "Erro ao enviar WhatsApp");
             return Result.Fail("Erro ao enviar mensagem WhatsApp.");
         }
+    }
+
+    /// <summary>Remove máscara e garante DDI 55 se número BR de 10/11 dígitos.</summary>
+    internal static string? NormalizePhone(string? telefone)
+    {
+        if (string.IsNullOrWhiteSpace(telefone)) return null;
+        var digits = Regex.Replace(telefone, @"\D", "");
+        if (digits.Length is 10 or 11)
+            digits = "55" + digits;
+        return digits.Length >= 12 ? digits : null;
     }
 }

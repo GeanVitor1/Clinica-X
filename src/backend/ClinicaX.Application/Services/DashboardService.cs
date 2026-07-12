@@ -59,11 +59,18 @@ public class DashboardService : IDashboardService
         var servicos = await _servicoRepo.GetAllAsync(clinicaId, ct);
         var servicoMap = servicos.ToDictionary(s => s.Id);
 
-        var pacientes = (await _pacienteRepo.GetAllAsync(clinicaId, null, 1, int.MaxValue, ct))
-            .ToDictionary(p => p.Id);
+        var pacienteIds = agendamentosHoje.Select(a => a.PacienteId)
+            .Concat(agendamentos7dias.Select(a => a.PacienteId))
+            .Distinct();
+        var pacientes = new Dictionary<Guid, Domain.Entities.Paciente>();
+        foreach (var pid in pacienteIds)
+        {
+            var p = await _pacienteRepo.GetByIdAndClinicaAsync(clinicaId, pid, ct);
+            if (p is not null) pacientes[p.Id] = p;
+        }
 
         var faturamento = agendamentosMes
-            .Where(a => a.Status != AgendamentoStatus.Cancelado)
+            .Where(a => a.Status == AgendamentoStatus.Realizado)
             .Sum(a => servicoMap.GetValueOrDefault(a.ServicoId)?.Valor ?? 0);
 
         var pendentes = await _notificacaoRepo.CountPendentesAsync(clinicaId, ct);
@@ -97,6 +104,12 @@ public class DashboardService : IDashboardService
                     a.Observacao,
                     a.MotivoCancelamento,
                     servico?.Cor,
+                    a.Profissional,
+                    a.Sala,
+                    a.Equipamento,
+                    null,
+                    a.ConfirmadoEm,
+                    a.RealizadoEm,
                     a.CriadoEm);
             })
             .ToList();

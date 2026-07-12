@@ -1,3 +1,4 @@
+using ClinicaX.Application.Interfaces;
 using ClinicaX.Application.Services;
 using ClinicaX.Infrastructure.Caching;
 using ClinicaX.Infrastructure.Jobs;
@@ -44,6 +45,7 @@ public static class DependencyInjection
         });
 
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
+        services.AddScoped<ITextSenderService, TextSenderService>();
 
         services.AddQuartz(q =>
         {

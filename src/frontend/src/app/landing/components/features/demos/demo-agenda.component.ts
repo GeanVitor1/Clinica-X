@@ -22,6 +22,16 @@ interface Day {
   standalone: true,
   template: `
     <div class="demo-agenda" #container>
+      <div class="demo-cursor" [class.show]="cursorVisible()">
+        <svg width="18" height="24" viewBox="0 0 18 24" fill="none">
+          <defs>
+            <filter id="calCursorShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="1" dy="1" stdDeviation="1.5" flood-opacity="0.35"/>
+            </filter>
+          </defs>
+          <path d="M2 2L2 19L6.5 14.5L9.5 21L12 20L9 13.5L16 13.5L2 2Z" fill="#222" stroke="#fff" stroke-width="1.2" stroke-linejoin="round" filter="url(#calCursorShadow)"/>
+        </svg>
+      </div>
       <div class="cal-header">
         <div class="cal-nav">
           <button class="nav-btn" (click)="prevMonth()">
@@ -39,7 +49,7 @@ interface Day {
         </div>
       </div>
 
-      <div class="cal-grid">
+      <div class="cal-grid" #calGrid>
         @for (name of dayNames; track name) {
           <div class="day-name">{{ name }}</div>
         }
@@ -67,15 +77,21 @@ interface Day {
       </div>
 
       @if (selectedDay(); as day) {
-        <div class="day-detail" #dayDetail>
+        <div class="modal-backdrop"></div>
+        <div class="day-detail day-modal" #dayDetail>
           <div class="detail-top">
             <strong>{{ day.dateStr }}</strong>
-            @if (day.hasConflict) {
-              <span class="conflict-badge">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                Conflito
-              </span>
-            }
+            <div class="detail-top-right">
+              @if (day.hasConflict) {
+                <span class="conflict-badge">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                  Conflito
+                </span>
+              }
+              <button class="modal-close" #modalClose>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
           </div>
           <div class="detail-events">
             @for (e of day.events; track e.title + e.time) {
@@ -103,18 +119,20 @@ interface Day {
     </div>
   `,
   styles: [`
+    :host { display: block; width: 100%; }
     .demo-agenda {
-    --cal-accent: #c9954a;
-    --cal-bg: var(--clx-bg);
-    --cal-border: var(--clx-border);
-    font-size: 0.82rem;
+      --cal-accent: #c9954a;
+      --cal-bg: var(--clx-bg);
+      --cal-border: var(--clx-border);
+      font-size: 0.82rem;
+      position: relative;
     }
 
     .cal-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .cal-nav {
       display: flex;
@@ -173,14 +191,14 @@ interface Day {
       display: grid;
       grid-template-columns: repeat(7, 1fr);
       gap: 4px;
-      margin-bottom: 16px;
+      margin-bottom: 0;
     }
     .day-name {
       text-align: center;
       font-size: 0.7rem;
       font-weight: 600;
       color: var(--clx-text-muted);
-      padding: 6px 0 8px;
+      padding: 4px 0 6px;
     }
     .day-cell {
       aspect-ratio: 1;
@@ -194,7 +212,11 @@ interface Day {
       position: relative;
       border: 1.5px solid transparent;
       background: var(--cal-bg);
-      transition: all 0.2s;
+      transition: border-color 0.2s, background 0.2s, transform 0.15s;
+      opacity: 0;
+    }
+    .day-cell.visible {
+      opacity: 1;
     }
     .day-cell:hover {
       border-color: var(--clx-accent);
@@ -203,9 +225,13 @@ interface Day {
     .day-cell.today {
       background: linear-gradient(135deg, #c9954a, #b8853a);
       color: #fff;
-      box-shadow: 0 3px 12px rgba(201, 149, 74, 0.35);
+      animation: todayPulse 3s ease-in-out infinite;
     }
     .day-cell.today .day-num { color: #fff; }
+    @keyframes todayPulse {
+      0%, 100% { box-shadow: 0 3px 12px rgba(201, 149, 74, 0.3); }
+      50% { box-shadow: 0 3px 20px rgba(201, 149, 74, 0.55); }
+    }
     .day-cell.other-month { opacity: 0.3; }
     .day-cell.selected {
       border-color: var(--clx-accent);
@@ -228,6 +254,13 @@ interface Day {
       width: 5px; height: 5px;
       border-radius: 50%;
       display: block;
+      animation: pipPop 2s ease-in-out infinite;
+    }
+    .event-pip:nth-child(2) { animation-delay: 0.3s; }
+    .event-pip:nth-child(3) { animation-delay: 0.6s; }
+    @keyframes pipPop {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.4); }
     }
     .event-more {
       font-size: 0.55rem;
@@ -240,6 +273,11 @@ interface Day {
       border: 1px solid var(--cal-border);
       border-radius: 14px;
       padding: 16px;
+      animation: detailIn 0.3s ease-out;
+    }
+    @keyframes detailIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .detail-top {
       display: flex;
@@ -251,6 +289,28 @@ interface Day {
       font-size: 0.85rem;
       color: var(--clx-text);
     }
+    .detail-top-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-close {
+      width: 26px; height: 26px;
+      border-radius: 8px;
+      border: 1px solid var(--cal-border);
+      background: var(--clx-bg);
+      color: var(--clx-text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+    .modal-close:hover {
+      background: #ef4444;
+      color: #fff;
+      border-color: #ef4444;
+    }
     .conflict-badge {
       display: inline-flex;
       align-items: center;
@@ -261,6 +321,11 @@ interface Day {
       color: #dc2626;
       font-size: 0.68rem;
       font-weight: 600;
+      animation: conflictBlink 1.5s ease-in-out infinite;
+    }
+    @keyframes conflictBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
     }
     .detail-events {
       display: flex;
@@ -279,6 +344,14 @@ interface Day {
       background: var(--clx-bg);
       border-radius: 10px;
       transition: 0.15s;
+      animation: eventSlide 0.3s ease-out backwards;
+    }
+    .detail-event:nth-child(1) { animation-delay: 0.05s; }
+    .detail-event:nth-child(2) { animation-delay: 0.1s; }
+    .detail-event:nth-child(3) { animation-delay: 0.15s; }
+    @keyframes eventSlide {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
     }
     .detail-event:hover {
       box-shadow: 0 2px 8px rgba(0,0,0,0.04);
@@ -334,19 +407,71 @@ interface Day {
       border-color: var(--clx-accent);
       background: rgba(20, 184, 166, 0.04);
     }
+
+    /* Cursor */
+    .demo-cursor {
+      position: absolute;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -10%);
+      transition: left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
+    }
+    .demo-cursor.show {
+      opacity: 1;
+    }
+    .day-cell.cursor-click {
+      transform: scale(0.85);
+      border-color: var(--clx-accent);
+      transition: transform 0.12s ease;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.35);
+      border-radius: 14px;
+      z-index: 15;
+      animation: backdropIn 0.25s ease-out;
+    }
+    @keyframes backdropIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .day-modal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 16;
+      width: 85%;
+      max-height: 80%;
+      overflow-y: auto;
+      animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes modalIn {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
   `],
 })
 export class DemoAgendaComponent {
   readonly containerRef = viewChild<ElementRef>('container');
+  readonly calGrid = viewChild<ElementRef>('calGrid');
   readonly dayDetail = viewChild<ElementRef>('dayDetail');
+  readonly modalClose = viewChild<ElementRef>('modalClose');
 
   readonly views = ['Dia', 'Semana', 'Mês'] as const;
   readonly currentView = signal<'Dia' | 'Semana' | 'Mês'>('Mês');
   readonly today = new Date();
   readonly cursorDate = signal(new Date(this.today.getFullYear(), this.today.getMonth(), 1));
   readonly selectedDay = signal<Day | null>(null);
+  readonly cursorVisible = signal(false);
 
   readonly dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  private started = false;
 
   readonly monthYear = computed(() => {
     const d = this.cursorDate();
@@ -379,6 +504,21 @@ export class DemoAgendaComponent {
     return result;
   });
 
+  private makeDay(year: number, month: number, dayNum: number, isCurrent: boolean, events: Map<string, AgendaEvent[]>): Day {
+    const date = new Date(year, month, dayNum);
+    const key = `${year}-${month}-${dayNum}`;
+    const evs = events.get(key) || [];
+    const isToday = date.toDateString() === this.today.toDateString();
+    return {
+      num: dayNum,
+      dateStr: date.toLocaleDateString('pt-BR'),
+      isToday,
+      isCurrentMonth: isCurrent,
+      events: evs,
+      hasConflict: evs.length > 1,
+    };
+  }
+
   private mockEvents(): Map<string, AgendaEvent[]> {
     const m = new Map<string, AgendaEvent[]>();
     const d = this.cursorDate();
@@ -405,37 +545,164 @@ export class DemoAgendaComponent {
 
   constructor() {
     afterNextRender(() => {
-      const cells = document.querySelectorAll('.demo-agenda .day-cell:not(.other-month)');
-      if (cells.length) {
-        gsap.fromTo(cells,
-          { scale: 0.85, opacity: 0 },
-          { scale: 1, opacity: 1, duration: 0.35, stagger: 0.015, ease: 'back.out(1.7)' }
-        );
-      }
+      const el = this.containerRef()?.nativeElement;
+      if (!el) return;
+      const obs = new IntersectionObserver((entries) => {
+        if (entries[0]?.isIntersecting && !this.started) {
+          this.started = true;
+          obs.disconnect();
+          this.loop();
+        }
+      }, { threshold: 0.25 });
+      obs.observe(el);
     });
   }
 
-  private makeDay(year: number, month: number, dayNum: number, isCurrent: boolean, events: Map<string, AgendaEvent[]>): Day {
-    const date = new Date(year, month, dayNum);
-    const key = `${year}-${month}-${dayNum}`;
-    const evs = events.get(key) || [];
-    const isToday = date.toDateString() === this.today.toDateString();
-    return {
-      num: dayNum,
-      dateStr: date.toLocaleDateString('pt-BR'),
-      isToday,
-      isCurrentMonth: isCurrent,
-      events: evs,
-      hasConflict: evs.length > 1,
-    };
+  private wait(ms: number) {
+    return new Promise(r => setTimeout(r, ms));
+  }
+
+  private async loop() {
+    const curMonth = this.today.getMonth();
+    const curYear = this.today.getFullYear();
+
+    while (true) {
+      this.cursorVisible.set(false);
+      this.cursorDate.set(new Date(curYear, curMonth, 1));
+      this.selectedDay.set(null);
+      await this.wait(200);
+
+      this.animateCells();
+      await this.wait(1000);
+
+      await this.clickDay(5);
+      await this.wait(2000);
+
+      await this.clickClose();
+      await this.wait(600);
+
+      await this.clickNav('next');
+      await this.wait(200);
+
+      this.animateCells();
+      await this.wait(1000);
+
+      await this.clickDay(12);
+      await this.wait(2000);
+
+      await this.clickClose();
+      await this.wait(600);
+
+      await this.clickNav('prev');
+      await this.wait(200);
+    }
+  }
+
+  private async clickDay(dayNum: number) {
+    const day = this.days().find(d => d.num === dayNum && d.isCurrentMonth);
+    if (!day) return;
+
+    const container = this.containerRef()?.nativeElement;
+    const cells = container?.querySelectorAll('.day-cell:not(.other-month)') as NodeListOf<HTMLElement> | undefined;
+    if (!cells) return;
+
+    let targetCell: HTMLElement | undefined;
+    cells.forEach(c => {
+      if (c.querySelector('.day-num')?.textContent?.trim() === String(dayNum)) targetCell = c;
+    });
+    if (!targetCell || !container) return;
+
+    const gridRect = container.getBoundingClientRect();
+    const cellRect = targetCell.getBoundingClientRect();
+    const x = cellRect.left - gridRect.left + cellRect.width / 2;
+    const y = cellRect.top - gridRect.top + cellRect.height / 2;
+
+    this.moveCursor(container, x, y);
+    await this.wait(500);
+
+    targetCell.style.transition = 'transform 0.15s ease';
+    targetCell.style.transform = 'scale(0.85)';
+    await this.wait(150);
+    targetCell.style.transform = 'scale(1)';
+
+    this.selectedDay.set(day);
+    await this.wait(100);
+  }
+
+  private async clickClose() {
+    const container = this.containerRef()?.nativeElement;
+    const closeBtn = container?.querySelector('.modal-close') as HTMLElement | null;
+    if (!closeBtn || !container) return;
+
+    const gridRect = container.getBoundingClientRect();
+    const btnRect = closeBtn.getBoundingClientRect();
+    const x = btnRect.left - gridRect.left + btnRect.width / 2;
+    const y = btnRect.top - gridRect.top + btnRect.height / 2;
+
+    this.moveCursor(container, x, y);
+    await this.wait(500);
+
+    closeBtn.style.transition = 'transform 0.12s ease';
+    closeBtn.style.transform = 'scale(0.7)';
+    await this.wait(120);
+    closeBtn.style.transform = 'scale(1)';
+
+    this.selectedDay.set(null);
+    await this.wait(100);
+    this.cursorVisible.set(false);
+  }
+
+  private async clickNav(dir: 'next' | 'prev') {
+    const container = this.containerRef()?.nativeElement;
+    const btns = container?.querySelectorAll('.nav-btn') as NodeListOf<HTMLElement> | undefined;
+    if (!btns || btns.length < 2 || !container) return;
+
+    const targetBtn = btns[dir === 'next' ? 1 : 0] as HTMLElement;
+    const gridRect = container.getBoundingClientRect();
+    const btnRect = targetBtn.getBoundingClientRect();
+    const x = btnRect.left - gridRect.left + btnRect.width / 2;
+    const y = btnRect.top - gridRect.top + btnRect.height / 2;
+
+    this.moveCursor(container, x, y);
+    await this.wait(500);
+
+    targetBtn.style.transition = 'transform 0.12s ease';
+    targetBtn.style.transform = 'scale(0.8)';
+    await this.wait(120);
+    targetBtn.style.transform = 'scale(1)';
+
+    if (dir === 'next') this.nextMonth();
+    else this.prevMonth();
+
+    await this.wait(100);
+    this.cursorVisible.set(false);
+  }
+
+  private moveCursor(container: HTMLElement, x: number, y: number) {
+    const cursorEl = container.querySelector('.demo-cursor') as HTMLElement | null;
+    if (!cursorEl) return;
+    cursorEl.style.left = x + 'px';
+    cursorEl.style.top = y + 'px';
+    this.cursorVisible.set(true);
+  }
+
+  private animateCells() {
+    const cells = document.querySelectorAll('.demo-agenda .day-cell:not(.other-month)');
+    if (!cells.length) return;
+    cells.forEach(c => c.classList.remove('visible'));
+    gsap.fromTo(cells,
+      { scale: 0.7, opacity: 0 },
+      {
+        scale: 1, opacity: 1, duration: 0.3,
+        stagger: { each: 0.018, grid: [6, 7], from: 'start' },
+        ease: 'back.out(1.4)',
+        onComplete: () => cells.forEach(c => c.classList.add('visible'))
+      }
+    );
   }
 
   selectDay(day: Day) {
     this.selectedDay.set(day);
-    afterNextRender(() => {
-      const el = this.dayDetail()?.nativeElement;
-      if (el) gsap.from(el, { opacity: 0, y: 10, duration: 0.35, ease: 'power2.out' });
-    });
   }
 
   prevMonth() {

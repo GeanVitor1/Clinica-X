@@ -28,32 +28,42 @@ public class LembreteJob : IJob
         var pacRepo = scope.ServiceProvider.GetRequiredService<IPacienteRepository>();
         var servRepo = scope.ServiceProvider.GetRequiredService<IServicoRepository>();
         var dispatcher = scope.ServiceProvider.GetRequiredService<INotificationDispatcher>();
+        var uow = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
 
-        var agora = DateTime.UtcNow;
-        var daqui1h = agora.AddHours(1);
+        // Usa horário local do servidor para alinhar com seed/UI de calendário
+        var agora = DateTime.Now;
+        var daqui24h = agora.AddHours(24);
 
         var clinicas = await clinicaRepo.GetAllAsync();
         foreach (var clinica in clinicas)
         {
-            var agendamentos = await agendamentoRepo.GetByClinicaAsync(clinica.Id, agora, daqui1h, context.CancellationToken);
-            foreach (var agendamento in agendamentos.Where(a => a.Status == AgendamentoStatus.Agendado))
+            // Lembretes: consultas nas próximas 24h ainda Agendado/Confirmado
+            var agendamentos = await agendamentoRepo.GetByClinicaAsync(clinica.Id, agora, daqui24h, context.CancellationToken);
+            foreach (var agendamento in agendamentos.Where(a =>
+                         a.Status is AgendamentoStatus.Agendado or AgendamentoStatus.Confirmado))
             {
                 var jaEnviado = await notifRepo.ExistsForAgendamentoAsync(
                     agendamento.Id, TipoNotificacao.Lembrete, context.CancellationToken);
-                if (jaEnviado)
-                {
-                    _logger.LogDebug(
-                        "Lembrete já enviado para agendamento {AgendamentoId}, ignorando",
-                        agendamento.Id);
+                if (jaEnviado || agendamento.LembreteEnviado)
                     continue;
-                }
 
-                var paciente = await pacRepo.GetByIdAsync(agendamento.PacienteId, context.CancellationToken);
-                var servico = await servRepo.GetByIdAsync(agendamento.ServicoId, context.CancellationToken);
+                var paciente = await pacRepo.GetByIdAndClinicaAsync(clinica.Id, agendamento.PacienteId, context.CancellationToken);
+                var servico = await servRepo.GetByIdAndClinicaAsync(clinica.Id, agendamento.ServicoId, context.CancellationToken);
                 if (paciente is null || servico is null) continue;
 
+                var link = string.IsNullOrEmpty(agendamento.TokenConfirmacao)
+                    ? null
+                    : $"/confirmar/{agendamento.TokenConfirmacao}";
+
                 var result = await dispatcher.SendLembreteAsync(
-                    agendamento, paciente.Nome, clinica.Nome, servico.Nome, context.CancellationToken);
+                    agendamento, paciente.Nome, clinica.Nome, servico.Nome, link, context.CancellationToken);
+
+                if (result.IsSuccess)
+                {
+                    agendamento.LembreteEnviado = true;
+                    await agendamentoRepo.UpdateAsync(agendamento, context.CancellationToken);
+                    await uow.SaveChangesAsync(context.CancellationToken);
+                }
 
                 _logger.LogInformation("Lembrete para {Paciente} em {Data}: {Status}",
                     paciente.Nome, agendamento.DataHoraInicio, result.IsSuccess ? "enviado" : "falha");

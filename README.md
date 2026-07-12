@@ -8,9 +8,9 @@ SaaS single-tenant para clínicas odontológicas e médicas. O dono da clínica 
 
 | Camada | Tecnologias |
 |--------|-------------|
-| Backend | ASP.NET Core 10, Clean Architecture, EF Core, PostgreSQL, JWT + Identity, FluentValidation, Mapster, FluentResults, Serilog, SignalR, Quartz.NET |
+| Backend | ASP.NET Core 10, Clean Architecture, EF Core, **SQL Server**, JWT + Identity, FluentValidation, FluentResults, Serilog, SignalR, Quartz.NET |
 | Frontend | Angular 21 (Standalone, Signals, Lazy Loading), Angular CDK, TypeScript, GSAP, Three.js, ApexCharts, Lenis |
-| Infra | Docker + Compose, Redis, Nginx, GitHub Actions |
+| Infra | Docker + Compose, Redis, Nginx, GitHub Actions, **Railway (API)** + **Vercel (Web)** |
 
 ---
 
@@ -65,11 +65,27 @@ npm start
 
 ---
 
+## Deploy (produção)
+
+Guia completo: **[DEPLOY.md](./DEPLOY.md)**
+
+| Serviço | Plataforma | Root |
+|---------|------------|------|
+| API | Railway (Docker) | `src/backend` |
+| Frontend | Vercel | `src/frontend` |
+
+Variáveis essenciais:
+
+- Railway: `ConnectionStrings__DefaultConnection`, `Jwt__Key`, `Cors__Origins__0`
+- Vercel: `API_URL=https://sua-api.up.railway.app`
+
+---
+
 ## Conta Demo
 
 | Perfil | Email | Senha |
 |--------|-------|-------|
-| Dono da clínica | demo@clinica.com | 1234 |
+| Dono da clínica | demo@clinica.com | Demo@1234 |
 
 ### Esqueci minha senha
 

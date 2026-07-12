@@ -12,6 +12,8 @@ public class CreatePacienteValidator : AbstractValidator<CreatePacienteRequest>
         RuleFor(x => x.Cpf).NotEmpty().Length(11).Matches("^[0-9]{11}$")
             .Must(CpfValidator.IsValid).WithMessage("CPF inválido.");
         RuleFor(x => x.Telefone).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email));
+        RuleFor(x => x.Convenio).MaximumLength(120);
         RuleFor(x => x.Observacoes).MaximumLength(1000);
     }
 }
@@ -24,6 +26,8 @@ public class UpdatePacienteValidator : AbstractValidator<UpdatePacienteRequest>
         RuleFor(x => x.Cpf).NotEmpty().Length(11).Matches("^[0-9]{11}$")
             .Must(CpfValidator.IsValid).WithMessage("CPF inválido.");
         RuleFor(x => x.Telefone).NotEmpty().MaximumLength(20);
+        RuleFor(x => x.Email).MaximumLength(200).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.Email));
+        RuleFor(x => x.Convenio).MaximumLength(120);
         RuleFor(x => x.Observacoes).MaximumLength(1000);
     }
 }

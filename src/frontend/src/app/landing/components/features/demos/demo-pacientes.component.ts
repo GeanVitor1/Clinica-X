@@ -1,4 +1,4 @@
-import { Component, signal, computed, afterNextRender } from '@angular/core';
+import { Component, signal, computed, afterNextRender, ElementRef, viewChild } from '@angular/core';
 import gsap from 'gsap';
 
 interface Patient {
@@ -18,46 +18,37 @@ interface Patient {
   selector: 'app-demo-pacientes',
   standalone: true,
   template: `
-    <div class="demo-pacientes">
+    <div class="demo-pacientes" #container>
+      <div class="pac-cursor" [class.show]="cursorVisible()">
+        <svg width="18" height="24" viewBox="0 0 18 24" fill="none">
+          <defs>
+            <filter id="pacShadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="1" dy="1" stdDeviation="1.5" flood-opacity="0.35"/>
+            </filter>
+          </defs>
+          <path d="M2 2L2 19L6.5 14.5L9.5 21L12 20L9 13.5L16 13.5L2 2Z" fill="#222" stroke="#fff" stroke-width="1.2" stroke-linejoin="round" filter="url(#pacShadow)"/>
+        </svg>
+      </div>
+
       <header class="pac-toolbar">
         <div class="pac-search">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input
-            type="text"
-            placeholder="Buscar por nome ou telefone"
-            [value]="searchQuery()"
-            (input)="searchQuery.set($any($event.target).value)"
-          />
+          <input type="text" placeholder="Buscar por nome ou telefone" readonly>
         </div>
         <div class="pac-filters">
           @for (f of filters; track f) {
-            <button
-              type="button"
-              class="filter-chip"
+            <button type="button" class="filter-chip"
               [class.active]="activeFilter() === f"
-              (click)="activeFilter.set(f)"
-            >{{ f }}</button>
+              [attr.data-filter]="f">{{ f }}</button>
           }
         </div>
       </header>
 
       <div class="pac-stats">
-        <div class="ps-item">
-          <span class="ps-val">{{ patients().length }}</span>
-          <span class="ps-lab">Total</span>
-        </div>
-        <div class="ps-item">
-          <span class="ps-val ps-val--ok">{{ activeCount() }}</span>
-          <span class="ps-lab">Ativos</span>
-        </div>
-        <div class="ps-item">
-          <span class="ps-val ps-val--warn">{{ returnCount() }}</span>
-          <span class="ps-lab">Retorno</span>
-        </div>
-        <div class="ps-item">
-          <span class="ps-val ps-val--new">{{ newCount() }}</span>
-          <span class="ps-lab">Novos</span>
-        </div>
+        <div class="ps-item"><span class="ps-val">5</span><span class="ps-lab">Total</span></div>
+        <div class="ps-item"><span class="ps-val ps-val--ok">2</span><span class="ps-lab">Ativos</span></div>
+        <div class="ps-item"><span class="ps-val ps-val--warn">2</span><span class="ps-lab">Retorno</span></div>
+        <div class="ps-item"><span class="ps-val ps-val--new">1</span><span class="ps-lab">Novos</span></div>
       </div>
 
       <div class="pac-table">
@@ -70,12 +61,8 @@ interface Patient {
         </div>
 
         <div class="pac-tbody">
-          @for (p of filteredPatients(); track p.id) {
-            <div
-              class="pac-row"
-              [class.selected]="selectedId() === p.id"
-              (click)="selectPatient(p.id)"
-            >
+          @for (p of patients(); track p.id) {
+            <div class="pac-row" [class.selected]="selectedId() === p.id" [attr.data-id]="p.id">
               <div class="col-patient">
                 <div class="pac-avatar" [style.background]="p.color">{{ p.initials }}</div>
                 <div class="pac-id">
@@ -83,9 +70,7 @@ interface Patient {
                   <span>{{ p.age }} anos · {{ p.phone }}</span>
                 </div>
               </div>
-              <div class="col-plan">
-                <span class="plan-pill">{{ p.plan }}</span>
-              </div>
+              <div class="col-plan"><span class="plan-pill">{{ p.plan }}</span></div>
               <div class="col-visit">
                 <span>{{ p.lastVisit }}</span>
                 <small>Próx. {{ p.nextVisit }}</small>
@@ -94,15 +79,7 @@ interface Patient {
                 <span class="status-dot" [attr.data-status]="p.status"></span>
                 <span class="status-label">{{ statusLabel(p.status) }}</span>
               </div>
-              <div class="col-action">
-                <button type="button" class="row-btn" (click)="$event.stopPropagation()">Agendar</button>
-              </div>
-            </div>
-          }
-
-          @if (filteredPatients().length === 0) {
-            <div class="pac-empty">
-              <span>Nenhum paciente encontrado</span>
+              <div class="col-action"><button type="button" class="row-btn">Agendar</button></div>
             </div>
           }
         </div>
@@ -118,14 +95,8 @@ interface Patient {
             </div>
           </div>
           <div class="preview-grid">
-            <div>
-              <label>Telefone</label>
-              <p>{{ sp.phone }}</p>
-            </div>
-            <div>
-              <label>Próxima consulta</label>
-              <p>{{ sp.nextVisit }}</p>
-            </div>
+            <div><label>Telefone</label><p>{{ sp.phone }}</p></div>
+            <div><label>Próxima consulta</label><p>{{ sp.nextVisit }}</p></div>
           </div>
           <div class="preview-actions">
             <button type="button" class="pa-btn pa-btn--ghost">Prontuário</button>
@@ -139,19 +110,28 @@ interface Patient {
     </div>
   `,
   styles: [`
+    :host { display: block; width: 100%; }
     .demo-pacientes {
       display: flex;
       flex-direction: column;
       gap: 12px;
       font-size: 0.8rem;
       min-width: 0;
+      position: relative;
     }
 
-    .pac-toolbar {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
+    .pac-cursor {
+      position: absolute;
+      z-index: 20;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -10%);
+      transition: left 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), top 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.15s;
     }
+    .pac-cursor.show { opacity: 1; }
+
+    .pac-toolbar { display: flex; flex-direction: column; gap: 10px; opacity: 0; }
+    .pac-toolbar.visible { opacity: 1; }
     .pac-search {
       display: flex;
       align-items: center;
@@ -160,115 +140,58 @@ interface Patient {
       background: var(--clx-bg);
       border: 1px solid var(--clx-border);
       border-radius: 11px;
-      transition: border-color 180ms ease, box-shadow 180ms ease;
-    }
-    .pac-search:focus-within {
-      border-color: rgba(59, 110, 245, 0.45);
-      box-shadow: 0 0 0 3px rgba(59, 110, 245, 0.1);
     }
     .pac-search svg { color: var(--clx-text-tertiary); flex-shrink: 0; }
     .pac-search input {
-      flex: 1;
-      min-width: 0;
-      border: none;
-      background: transparent;
-      font-size: 0.82rem;
-      color: var(--clx-text);
-      outline: none;
-      font-family: inherit;
+      flex: 1; min-width: 0; border: none; background: transparent;
+      font-size: 0.82rem; color: var(--clx-text); outline: none; font-family: inherit;
     }
     .pac-search input::placeholder { color: var(--clx-text-tertiary); }
 
-    .pac-filters {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
+    .pac-filters { display: flex; gap: 6px; flex-wrap: wrap; }
     .filter-chip {
-      padding: 5px 10px;
-      border-radius: 8px;
-      border: 1px solid var(--clx-border);
-      background: var(--clx-bg);
-      color: var(--clx-text-muted);
-      font-size: 0.7rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      transition: all 160ms ease;
+      padding: 5px 10px; border-radius: 8px; border: 1px solid var(--clx-border);
+      background: var(--clx-bg); color: var(--clx-text-muted); font-size: 0.7rem;
+      font-weight: 600; font-family: inherit; cursor: pointer; transition: all 160ms ease;
     }
     .filter-chip.active {
-      background: rgba(59, 110, 245, 0.1);
-      border-color: rgba(59, 110, 245, 0.28);
+      background: rgba(59, 110, 245, 0.1); border-color: rgba(59, 110, 245, 0.28);
       color: var(--clx-accent);
     }
 
-    .pac-stats {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-    }
+    .pac-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; opacity: 0; }
+    .pac-stats.visible { opacity: 1; }
     .ps-item {
-      padding: 10px 10px 9px;
-      background: var(--clx-bg);
-      border: 1px solid var(--clx-border);
-      border-radius: 11px;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+      padding: 10px 10px 9px; background: var(--clx-bg); border: 1px solid var(--clx-border);
+      border-radius: 11px; display: flex; flex-direction: column; gap: 2px;
     }
-    .ps-val {
-      font-size: 1rem;
-      font-weight: 750;
-      color: var(--clx-text);
-      letter-spacing: -0.03em;
-      font-variant-numeric: tabular-nums;
-    }
+    .ps-val { font-size: 1rem; font-weight: 750; color: var(--clx-text); font-variant-numeric: tabular-nums; }
     .ps-val--ok { color: #059669; }
     .ps-val--warn { color: #d97706; }
     .ps-val--new { color: #3b6ef5; }
-    .ps-lab {
-      font-size: 0.62rem;
-      font-weight: 600;
-      color: var(--clx-text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
+    .ps-lab { font-size: 0.62rem; font-weight: 600; color: var(--clx-text-tertiary); text-transform: uppercase; letter-spacing: 0.04em; }
 
     .pac-table {
-      background: var(--clx-bg);
-      border: 1px solid var(--clx-border);
-      border-radius: 14px;
-      overflow: hidden;
-      min-width: 0;
+      background: var(--clx-bg); border: 1px solid var(--clx-border);
+      border-radius: 14px; overflow: hidden; min-width: 0; opacity: 0;
     }
+    .pac-table.visible { opacity: 1; }
     .pac-thead {
       display: grid;
       grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.7fr) minmax(0, 0.85fr) minmax(0, 0.7fr) 72px;
-      gap: 8px;
-      padding: 9px 12px;
-      background: var(--clx-bg-alt);
-      border-bottom: 1px solid var(--clx-border);
-      font-size: 0.62rem;
-      font-weight: 650;
-      color: var(--clx-text-tertiary);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
+      gap: 8px; padding: 9px 12px; background: var(--clx-bg-alt);
+      border-bottom: 1px solid var(--clx-border); font-size: 0.62rem;
+      font-weight: 650; color: var(--clx-text-tertiary); text-transform: uppercase; letter-spacing: 0.05em;
     }
-    .pac-tbody {
-      max-height: 210px;
-      overflow-y: auto;
-    }
+    .pac-tbody { max-height: 210px; overflow-y: auto; }
     .pac-row {
       display: grid;
       grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.7fr) minmax(0, 0.85fr) minmax(0, 0.7fr) 72px;
-      gap: 8px;
-      align-items: center;
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--clx-border);
-      cursor: pointer;
-      transition: background 140ms ease;
-      min-width: 0;
+      gap: 8px; align-items: center; padding: 10px 12px;
+      border-bottom: 1px solid var(--clx-border); cursor: pointer;
+      transition: background 140ms ease; min-width: 0; opacity: 0;
     }
+    .pac-row.visible { opacity: 1; }
     .pac-row:last-child { border-bottom: none; }
     .pac-row:hover { background: color-mix(in srgb, var(--clx-accent) 4%, transparent); }
     .pac-row.selected {
@@ -276,236 +199,80 @@ interface Patient {
       box-shadow: inset 3px 0 0 var(--clx-accent);
     }
 
-    .col-patient {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-    }
+    .col-patient { display: flex; align-items: center; gap: 10px; min-width: 0; }
     .pac-avatar {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-weight: 700;
-      font-size: 0.68rem;
-      flex-shrink: 0;
+      width: 34px; height: 34px; border-radius: 10px; display: flex;
+      align-items: center; justify-content: center; color: #fff;
+      font-weight: 700; font-size: 0.68rem; flex-shrink: 0;
     }
-    .pac-avatar--lg {
-      width: 40px;
-      height: 40px;
-      font-size: 0.75rem;
-    }
-    .pac-id {
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-    .pac-id strong {
-      font-size: 0.8rem;
-      color: var(--clx-text);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .pac-id span {
-      font-size: 0.66rem;
-      color: var(--clx-text-tertiary);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+    .pac-avatar--lg { width: 40px; height: 40px; font-size: 0.75rem; }
+    .pac-id { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .pac-id strong { font-size: 0.8rem; color: var(--clx-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .pac-id span { font-size: 0.66rem; color: var(--clx-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-    .col-plan,
-    .col-visit,
-    .col-status,
-    .col-action {
-      min-width: 0;
-    }
+    .col-plan, .col-visit, .col-status, .col-action { min-width: 0; }
     .plan-pill {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 6px;
-      background: var(--clx-bg-soft);
-      border: 1px solid var(--clx-border);
-      font-size: 0.66rem;
-      font-weight: 600;
-      color: var(--clx-text-secondary);
-      white-space: nowrap;
-      max-width: 100%;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      display: inline-block; padding: 3px 8px; border-radius: 6px;
+      background: var(--clx-bg-soft); border: 1px solid var(--clx-border);
+      font-size: 0.66rem; font-weight: 600; color: var(--clx-text-secondary); white-space: nowrap;
     }
-    .col-visit {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
-    .col-visit span {
-      font-size: 0.74rem;
-      font-weight: 600;
-      color: var(--clx-text);
-      font-variant-numeric: tabular-nums;
-    }
-    .col-visit small {
-      font-size: 0.62rem;
-      color: var(--clx-text-tertiary);
-    }
-    .col-status {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
-      flex-shrink: 0;
-      background: #94a3b8;
-    }
-    .status-dot[data-status='ativo'] {
-      background: #10b981;
-      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
-    }
-    .status-dot[data-status='retorno'] {
-      background: #d97706;
-      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15);
-    }
-    .status-dot[data-status='novo'] {
-      background: #3b6ef5;
-      box-shadow: 0 0 0 3px rgba(59, 110, 245, 0.15);
-    }
-    .status-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      color: var(--clx-text-secondary);
-    }
+    .col-visit { display: flex; flex-direction: column; gap: 1px; }
+    .col-visit span { font-size: 0.74rem; font-weight: 600; color: var(--clx-text); font-variant-numeric: tabular-nums; }
+    .col-visit small { font-size: 0.62rem; color: var(--clx-text-tertiary); }
+    .col-status { display: flex; align-items: center; gap: 6px; }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: #94a3b8; }
+    .status-dot[data-status='ativo'] { background: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15); }
+    .status-dot[data-status='retorno'] { background: #d97706; box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.15); }
+    .status-dot[data-status='novo'] { background: #3b6ef5; box-shadow: 0 0 0 3px rgba(59, 110, 245, 0.15); }
+    .status-label { font-size: 0.7rem; font-weight: 600; color: var(--clx-text-secondary); }
     .row-btn {
-      padding: 5px 8px;
-      border-radius: 7px;
-      border: 1px solid var(--clx-border);
-      background: var(--clx-bg-alt);
-      color: var(--clx-text);
-      font-size: 0.66rem;
-      font-weight: 600;
-      font-family: inherit;
-      cursor: pointer;
-      white-space: nowrap;
+      padding: 5px 8px; border-radius: 7px; border: 1px solid var(--clx-border);
+      background: var(--clx-bg-alt); color: var(--clx-text); font-size: 0.66rem;
+      font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap;
       transition: border-color 140ms ease, color 140ms ease;
     }
-    .row-btn:hover {
-      border-color: var(--clx-accent);
-      color: var(--clx-accent);
-    }
-
-    .pac-empty {
-      padding: 28px;
-      text-align: center;
-      color: var(--clx-text-muted);
-      font-size: 0.8rem;
-    }
+    .row-btn:hover { border-color: var(--clx-accent); color: var(--clx-accent); }
 
     .pac-preview {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      padding: 14px;
-      background: var(--clx-bg);
-      border: 1px solid rgba(59, 110, 245, 0.18);
-      border-radius: 14px;
-      box-shadow: 0 8px 24px rgba(59, 110, 245, 0.06);
+      display: flex; flex-direction: column; gap: 12px; padding: 14px;
+      background: var(--clx-bg); border: 1px solid rgba(59, 110, 245, 0.18);
+      border-radius: 14px; box-shadow: 0 8px 24px rgba(59, 110, 245, 0.06);
+      animation: previewIn 0.3s ease-out;
     }
-    .preview-head {
-      display: flex;
-      align-items: center;
-      gap: 12px;
+    @keyframes previewIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
-    .preview-head strong {
-      display: block;
-      font-size: 0.88rem;
-      color: var(--clx-text);
-    }
-    .preview-head span {
-      font-size: 0.72rem;
-      color: var(--clx-text-muted);
-    }
+    .preview-head { display: flex; align-items: center; gap: 12px; }
+    .preview-head strong { display: block; font-size: 0.88rem; color: var(--clx-text); }
+    .preview-head span { font-size: 0.72rem; color: var(--clx-text-muted); }
     .preview-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      padding-top: 10px;
-      border-top: 1px solid var(--clx-border);
+      display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+      padding-top: 10px; border-top: 1px solid var(--clx-border);
     }
     .preview-grid label {
-      display: block;
-      font-size: 0.62rem;
-      font-weight: 650;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--clx-text-tertiary);
-      margin-bottom: 3px;
+      display: block; font-size: 0.62rem; font-weight: 650; text-transform: uppercase;
+      letter-spacing: 0.04em; color: var(--clx-text-tertiary); margin-bottom: 3px;
     }
-    .preview-grid p {
-      font-size: 0.8rem;
-      font-weight: 600;
-      color: var(--clx-text);
-    }
-    .preview-actions {
-      display: flex;
-      gap: 8px;
-    }
+    .preview-grid p { font-size: 0.8rem; font-weight: 600; color: var(--clx-text); }
+    .preview-actions { display: flex; gap: 8px; }
     .pa-btn {
-      flex: 1;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 8px 10px;
-      border-radius: 9px;
-      font-size: 0.72rem;
-      font-weight: 650;
-      font-family: inherit;
-      cursor: pointer;
-      border: none;
+      flex: 1; display: inline-flex; align-items: center; justify-content: center;
+      gap: 6px; padding: 8px 10px; border-radius: 9px; font-size: 0.72rem;
+      font-weight: 650; font-family: inherit; cursor: pointer; border: none;
       transition: transform 140ms ease, box-shadow 140ms ease;
     }
-    .pa-btn--ghost {
-      background: var(--clx-bg-alt);
-      border: 1px solid var(--clx-border);
-      color: var(--clx-text);
-    }
-    .pa-btn--wa {
-      background: #25D366;
-      color: #fff;
-      box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25);
-    }
+    .pa-btn--ghost { background: var(--clx-bg-alt); border: 1px solid var(--clx-border); color: var(--clx-text); }
+    .pa-btn--wa { background: #25D366; color: #fff; box-shadow: 0 4px 12px rgba(37, 211, 102, 0.25); }
     .pa-btn:hover { transform: translateY(-1px); }
-
-    @media (max-width: 640px) {
-      .pac-thead { display: none; }
-      .pac-row {
-        grid-template-columns: 1fr auto;
-        grid-template-areas:
-          "patient action"
-          "meta meta";
-        gap: 8px 10px;
-      }
-      .col-patient { grid-area: patient; }
-      .col-action { grid-area: action; }
-      .col-plan, .col-visit, .col-status {
-        display: none;
-      }
-      .pac-stats { grid-template-columns: repeat(2, 1fr); }
-    }
   `],
 })
 export class DemoPacientesComponent {
+  readonly containerRef = viewChild<ElementRef>('container');
+  readonly cursorVisible = signal(false);
+  private started = false;
+
   readonly filters = ['Todos', 'Ativos', 'Retorno', 'Novos'] as const;
-  readonly searchQuery = signal('');
   readonly activeFilter = signal<(typeof this.filters)[number]>('Todos');
   readonly selectedId = signal(1);
 
@@ -517,43 +284,140 @@ export class DemoPacientesComponent {
     { id: 5, name: 'Fernanda Rocha', initials: 'FR', age: 31, lastVisit: '22/06', nextVisit: '22/09', phone: '(11) 99999-0005', plan: 'Bradesco', status: 'retorno', color: 'linear-gradient(135deg,#059669,#0d9488)' },
   ]);
 
-  readonly filteredPatients = computed(() => {
-    const q = this.searchQuery().toLowerCase();
-    const f = this.activeFilter();
-    return this.patients().filter((p) => {
-      const matchQ = p.name.toLowerCase().includes(q) || p.phone.includes(q);
-      const matchF =
-        f === 'Todos' ||
-        (f === 'Ativos' && p.status === 'ativo') ||
-        (f === 'Retorno' && p.status === 'retorno') ||
-        (f === 'Novos' && p.status === 'novo');
-      return matchQ && matchF;
-    });
-  });
-
   readonly selectedPatient = computed(() =>
     this.patients().find((p) => p.id === this.selectedId()) ?? null
   );
 
-  readonly activeCount = computed(() => this.patients().filter((p) => p.status === 'ativo').length);
-  readonly returnCount = computed(() => this.patients().filter((p) => p.status === 'retorno').length);
-  readonly newCount = computed(() => this.patients().filter((p) => p.status === 'novo').length);
-
   constructor() {
     afterNextRender(() => {
-      const rows = document.querySelectorAll('.demo-pacientes .pac-row');
-      if (rows.length) {
-        gsap.fromTo(
-          rows,
-          { y: 12, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.4, stagger: 0.05, ease: 'power2.out', delay: 0.15 }
-        );
-      }
+      const el = this.containerRef()?.nativeElement;
+      if (!el) return;
+      const obs = new IntersectionObserver((entries) => {
+        if (entries[0]?.isIntersecting && !this.started) {
+          this.started = true;
+          obs.disconnect();
+          this.loop();
+        }
+      }, { threshold: 0.25 });
+      obs.observe(el);
     });
   }
 
-  selectPatient(id: number) {
+  private wait(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+  private async loop() {
+    while (true) {
+      this.cursorVisible.set(false);
+      this.activeFilter.set('Todos');
+      this.selectedId.set(1);
+      await this.wait(100);
+
+      this.animateEntrance();
+      await this.wait(800);
+
+      await this.clickRow(3);
+      await this.wait(2200);
+
+      await this.clickRow(5);
+      await this.wait(2200);
+
+      await this.clickFilter('Retorno');
+      await this.wait(2000);
+
+      await this.clickFilter('Ativos');
+      await this.wait(2000);
+
+      await this.clickFilter('Todos');
+      await this.wait(500);
+
+      await this.clickRow(2);
+      await this.wait(2200);
+    }
+  }
+
+  private animateEntrance() {
+    const container = this.containerRef()?.nativeElement;
+    if (!container) return;
+
+    const toolbar = container.querySelector('.pac-toolbar');
+    const stats = container.querySelector('.pac-stats');
+    const table = container.querySelector('.pac-table');
+    const rows = container.querySelectorAll('.pac-row');
+
+    [toolbar, stats, table].forEach(el => {
+      if (el) el.classList.remove('visible');
+    });
+    rows.forEach((r: HTMLElement) => r.classList.remove('visible'));
+
+    gsap.fromTo(toolbar, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: 'power2.out', onComplete: () => toolbar?.classList.add('visible') });
+    gsap.fromTo(stats, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: 'power2.out', delay: 0.1, onComplete: () => stats?.classList.add('visible') });
+    gsap.fromTo(table, { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.35, ease: 'power2.out', delay: 0.15, onComplete: () => table?.classList.add('visible') });
+
+    if (rows.length) {
+      gsap.fromTo(rows,
+        { x: -12, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.3, stagger: 0.06, ease: 'power2.out', delay: 0.2,
+          onComplete: () => rows.forEach((r: HTMLElement) => r.classList.add('visible')) }
+      );
+    }
+  }
+
+  private async clickRow(id: number) {
+    const container = this.containerRef()?.nativeElement;
+    if (!container) return;
+
+    const row = container.querySelector(`.pac-row[data-id="${id}"]`) as HTMLElement;
+    if (!row) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const x = rowRect.left - containerRect.left + 60;
+    const y = rowRect.top - containerRect.top + rowRect.height / 2;
+
+    this.moveCursor(container, x, y);
+    await this.wait(450);
+
+    row.style.transition = 'background 0.12s ease, box-shadow 0.12s ease';
+    row.style.background = 'rgba(59, 110, 245, 0.12)';
+    await this.wait(120);
+    row.style.background = '';
+
     this.selectedId.set(id);
+    await this.wait(150);
+    this.cursorVisible.set(false);
+  }
+
+  private async clickFilter(label: string) {
+    const container = this.containerRef()?.nativeElement;
+    if (!container) return;
+
+    const chip = container.querySelector(`.filter-chip[data-filter="${label}"]`) as HTMLElement;
+    if (!chip) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
+    const x = chipRect.left - containerRect.left + chipRect.width / 2;
+    const y = chipRect.top - containerRect.top + chipRect.height / 2;
+
+    this.moveCursor(container, x, y);
+    await this.wait(450);
+
+    chip.style.transition = 'transform 0.12s ease';
+    chip.style.transform = 'scale(0.9)';
+    await this.wait(120);
+    chip.style.transform = 'scale(1)';
+
+    this.activeFilter.set(label as typeof this.filters[number]);
+    await this.wait(200);
+    this.cursorVisible.set(false);
+  }
+
+  private moveCursor(container: HTMLElement, x: number, y: number) {
+    const cursorEl = container.querySelector('.pac-cursor') as HTMLElement;
+    if (!cursorEl) return;
+    cursorEl.style.left = x + 'px';
+    cursorEl.style.top = y + 'px';
+    this.cursorVisible.set(true);
   }
 
   statusLabel(s: Patient['status']) {

@@ -1,7 +1,5 @@
 import { Component, afterNextRender, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { AnimateOnScrollDirective } from '../../directives/animate-on-scroll.directive';
 
 @Component({
@@ -216,26 +214,12 @@ export class WhyChooseComponent {
   ];
 
   constructor() {
-    gsap.registerPlugin(ScrollTrigger);
-
     afterNextRender(() => {
       const cards = document.querySelectorAll('.why-card');
       if (!cards.length) return;
-
-      gsap.set(cards, { opacity: 0, y: 24 });
-      ScrollTrigger.create({
-        trigger: cards[0].parentElement,
-        start: 'top 85%',
-        onEnter: () => {
-          gsap.to(cards, {
-            opacity: 1,
-            y: 0,
-            duration: 0.55,
-            stagger: 0.08,
-            ease: 'power3.out',
-          });
-        },
-        once: true,
+      // Import dinâmico evita circular; usa helper seguro
+      import('../../../shared/utils/safe-reveal').then(({ safeRevealOnScroll }) => {
+        safeRevealOnScroll(cards, { y: 8, duration: 0.15, stagger: 0.015, start: 'top 94%' });
       });
     });
   }

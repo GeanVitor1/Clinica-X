@@ -20,7 +20,9 @@ public class NotificacaoRepository : INotificacaoRepository
     public async Task AddAsync(Notificacao notificacao, CancellationToken ct = default) => await _context.Set<Notificacao>().AddAsync(notificacao, ct);
 
     public async Task<int> CountPendentesAsync(Guid clinicaId, CancellationToken ct = default)
-        => await _context.Set<Notificacao>().CountAsync(n => n.ClinicaId == clinicaId && n.Status == StatusNotificacao.Pendente, ct);
+        => await _context.Set<Notificacao>().CountAsync(n =>
+            n.ClinicaId == clinicaId
+            && (n.Status == StatusNotificacao.Pendente || n.Status == StatusNotificacao.Falha), ct);
 
     public async Task<bool> ExistsForAgendamentoAsync(Guid agendamentoId, TipoNotificacao tipo, CancellationToken ct = default)
         => await _context.Set<Notificacao>().AnyAsync(

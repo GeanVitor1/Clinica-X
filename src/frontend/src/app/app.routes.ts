@@ -12,6 +12,11 @@ export const routes: Routes = [
     loadChildren: () => import('./auth/auth.routes'),
   },
   {
+    path: 'confirmar/:token',
+    loadComponent: () =>
+      import('./public/confirmar-consulta.component').then((m) => m.ConfirmarConsultaComponent),
+  },
+  {
     path: '',
     loadComponent: () =>
       import('./core/layout/dashboard-layout.component').then((m) => m.DashboardLayoutComponent),
@@ -44,6 +49,10 @@ export const routes: Routes = [
       {
         path: 'config',
         loadChildren: () => import('./config/config.routes'),
+      },
+      {
+        path: 'modulos',
+        loadChildren: () => import('./modulos/modulos.routes'),
       },
     ],
   },

@@ -1,11 +1,11 @@
-import { Component, ElementRef, viewChild, afterNextRender } from '@angular/core';
+import { Component, viewChild, ElementRef, signal, AfterViewInit } from '@angular/core';
 import gsap from 'gsap';
 
 @Component({
   selector: 'app-demo-relatorios',
   standalone: true,
   template: `
-    <div class="demo-relatorios">
+    <div class="demo-relatorios" #root>
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-icon" style="background: rgba(201, 149, 74, 0.1); color: #c9954a;">
@@ -44,14 +44,15 @@ import gsap from 'gsap';
           </select>
         </div>
         <div class="bar-chart" #barChart>
-          @for (bar of monthlyData; track bar.label) {
+          @for (bar of monthlyData; track bar.label; let i = $index) {
             <div class="bar-col">
               <div class="bar-label">{{ bar.label }}</div>
               <div class="bar-track">
                 <div class="bar-fill"
-                     [style.height]="bar.percent + '%'"
                      [style.background]="bar.color"
-                     #barFill>
+                     [style.--h]="bar.percent"
+                     [style.--d]="i * 0.12 + 's'"
+                     [class.grown]="barsGrown()">
                   <div class="bar-glow"></div>
                 </div>
               </div>
@@ -74,13 +75,16 @@ import gsap from 'gsap';
     </div>
   `,
   styles: [`
-    .demo-relatorios { font-size: 0.82rem; }
+    :host { display: block; width: 100%; }
+    .demo-relatorios {
+      font-size: 0.82rem;
+    }
 
     .stats-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 10px;
-      margin-bottom: 16px;
+      margin-bottom: 14px;
     }
     .stat-card {
       background: var(--clx-bg);
@@ -114,7 +118,7 @@ import gsap from 'gsap';
       background: var(--clx-bg);
       border: 1px solid var(--clx-border);
       border-radius: 14px;
-      padding: 20px;
+      padding: 18px;
       transition: 0.2s;
     }
     .chart-box:hover { border-color: var(--clx-accent); }
@@ -122,7 +126,7 @@ import gsap from 'gsap';
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
     }
     .chart-header strong {
       display: block;
@@ -175,10 +179,30 @@ import gsap from 'gsap';
     }
     .bar-fill {
       width: 100%;
+      height: 0%;
       border-radius: 6px 6px 0 0;
       position: relative;
-      transition: height 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-      min-height: 4px;
+      transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transition-delay: var(--d, 0s);
+    }
+    .bar-fill.grown {
+      height: calc(var(--h) * 1%);
+    }
+    .bar-fill::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.15), transparent 60%);
+      border-radius: inherit;
+      opacity: 0;
+    }
+    .bar-fill.grown::after {
+      animation: barShine 1.5s ease-out 0.6s forwards;
+    }
+    @keyframes barShine {
+      0% { opacity: 0; }
+      30% { opacity: 1; }
+      100% { opacity: 0.5; }
     }
     .bar-glow {
       position: absolute;
@@ -233,11 +257,13 @@ import gsap from 'gsap';
     }
   `],
 })
-export class DemoRelatoriosComponent {
+export class DemoRelatoriosComponent implements AfterViewInit {
+  readonly root = viewChild<ElementRef>('root');
   readonly fatValue = viewChild<ElementRef>('fatValue');
   readonly conValue = viewChild<ElementRef>('conValue');
   readonly ocpValue = viewChild<ElementRef>('ocpValue');
   readonly barChart = viewChild<ElementRef>('barChart');
+  readonly barsGrown = signal(false);
 
   readonly monthlyData = [
     { label: 'Fev', value: 48, percent: 60, color: '#c9954a' },
@@ -248,46 +274,66 @@ export class DemoRelatoriosComponent {
     { label: 'Jul', value: 83, percent: 100, color: '#c9954a' },
   ];
 
-  constructor() {
-    afterNextRender(() => {
-      const statCards = document.querySelectorAll('.demo-relatorios .stat-card');
-      if (statCards.length) {
-        gsap.fromTo(statCards,
-          { y: 20, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.4, stagger: 0.1, ease: 'power2.out' }
-        );
+  private started = false;
+
+  ngAfterViewInit() {
+    const el = this.root()?.nativeElement;
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0]?.isIntersecting && !this.started) {
+        this.started = true;
+        obs.disconnect();
+        this.loop();
       }
-      const chartBox = document.querySelector('.demo-relatorios .chart-box');
-      if (chartBox) {
-        gsap.fromTo(chartBox,
-          { y: 20, opacity: 0 },
-          { y: 0, opacity: 1, duration: 0.5, delay: 0.2, ease: 'power2.out' }
-        );
-      }
-      this.animate();
-    });
+    }, { threshold: 0.25 });
+    obs.observe(el);
   }
 
-  private animate() {
-    const fatEl = this.fatValue()?.nativeElement;
-    const conEl = this.conValue()?.nativeElement;
-    const ocpEl = this.ocpValue()?.nativeElement;
+  private loop() {
+    // Reset to initial state
+    this.barsGrown.set(false);
+    gsap.killTweensOf('.demo-relatorios .stat-card');
+    gsap.killTweensOf('.demo-relatorios .chart-box');
+    gsap.killTweensOf(this.fatValue()?.nativeElement);
+    gsap.killTweensOf(this.conValue()?.nativeElement);
+    gsap.killTweensOf(this.ocpValue()?.nativeElement);
 
-    if (fatEl) gsap.to(fatEl, {
-      textContent: 84750, duration: 2.2, ease: 'power2.out', snap: { textContent: 1 },
-      modifiers: { textContent: (v: string) => 'R$ ' + parseInt(v).toLocaleString('pt-BR') },
-    });
-    if (conEl) gsap.to(conEl, {
-      textContent: 387, duration: 2.2, ease: 'power2.out', snap: { textContent: 1 },
-    });
-    if (ocpEl) gsap.to(ocpEl, {
-      textContent: 78, duration: 2.2, ease: 'power2.out', snap: { textContent: 1 },
-      modifiers: { textContent: (v: string) => v + '%' },
-    });
+    // Reset DOM to initial
+    gsap.set('.demo-relatorios .stat-card', { y: 24, opacity: 0, clearProps: 'all' });
+    gsap.set('.demo-relatorios .chart-box', { y: 24, opacity: 0, clearProps: 'all' });
+    if (this.fatValue()?.nativeElement) this.fatValue()!.nativeElement.textContent = 'R$ 0';
+    if (this.conValue()?.nativeElement) this.conValue()!.nativeElement.textContent = '0';
+    if (this.ocpValue()?.nativeElement) this.ocpValue()!.nativeElement.textContent = '0%';
 
-    const bars = this.barChart()?.nativeElement?.querySelectorAll('.bar-fill');
-    if (bars) {
-      gsap.fromTo(bars, { scaleY: 0, transformOrigin: 'bottom' }, { scaleY: 1, duration: 1, stagger: 0.08, ease: 'back.out(1.7)' });
-    }
+    setTimeout(() => {
+      // Animate entrance
+      gsap.fromTo('.demo-relatorios .stat-card',
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.4, stagger: 0.08, ease: 'power2.out' }
+      );
+      gsap.fromTo('.demo-relatorios .chart-box',
+        { y: 24, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.45, delay: 0.25, ease: 'power2.out' }
+      );
+
+      // Animate numbers
+      gsap.to(this.fatValue()?.nativeElement, {
+        textContent: 84750, duration: 2.2, ease: 'power2.out', snap: { textContent: 1 },
+        modifiers: { textContent: (v: string) => { const n = parseInt(v) || 0; return 'R$ ' + n.toLocaleString('pt-BR'); } },
+      });
+      gsap.to(this.conValue()?.nativeElement, {
+        textContent: 387, duration: 2.2, ease: 'power2.out', snap: { textContent: 1 },
+      });
+      gsap.to(this.ocpValue()?.nativeElement, {
+        textContent: 78, duration: 2.2, ease: 'power2.out', snap: { textContent: 1 },
+        modifiers: { textContent: (v: string) => (parseInt(v) || 0) + '%' },
+      });
+
+      // Grow bars
+      setTimeout(() => this.barsGrown.set(true), 500);
+    }, 100);
+
+    // Loop after total cycle time (~4.5s of animation + 3s pause)
+    setTimeout(() => this.loop(), 7500);
   }
 }

@@ -27,7 +27,8 @@ public class ReportService : IReportService
         var servicos = await _servicoRepo.GetAllAsync(clinicaId, ct);
         var servicoMap = servicos.ToDictionary(s => s.Id);
 
-        var realizados = agendamentos.Where(a => a.Status != AgendamentoStatus.Cancelado).ToList();
+        // Apenas consultas realizadas contam como faturamento (alinha com o dashboard)
+        var realizados = agendamentos.Where(a => a.Status == AgendamentoStatus.Realizado).ToList();
 
         var porServico = realizados
             .GroupBy(a => a.ServicoId)

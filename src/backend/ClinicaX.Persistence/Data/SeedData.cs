@@ -10,9 +10,10 @@ namespace ClinicaX.Persistence.Data;
 public static class SeedData
 {
     public const string DemoEmail = "demo@clinica.com";
-    public const string DemoPassword = "1234";
+    /// <summary>Senha demo alinhada à política Identity (8+ com complexidade).</summary>
+    public const string DemoPassword = "Demo@1234";
 
-    public static async Task InitializeAsync(IServiceProvider serviceProvider)
+    public static async Task InitializeAsync(IServiceProvider serviceProvider, bool enableDemo = true)
     {
         using var scope = serviceProvider.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<ClinicaXDbContext>();
@@ -25,8 +26,14 @@ public static class SeedData
         if (!await roleManager.RoleExistsAsync("ClinicaOwner"))
             await roleManager.CreateAsync(new IdentityRole("ClinicaOwner"));
 
+        if (!enableDemo)
+        {
+            logger.LogInformation("Seed demo desabilitado (Seed:EnableDemo=false).");
+            return;
+        }
+
         Clinica clinica;
-        if (!context.Clinicas.Any())
+        if (!context.Clinicas.Any(c => c.Email == DemoEmail))
         {
             clinica = new Clinica
             {
@@ -37,7 +44,8 @@ public static class SeedData
                 Plano = "Profissional",
                 HorarioAbertura = new TimeSpan(8, 0, 0),
                 HorarioFechamento = new TimeSpan(18, 0, 0),
-                DiasFuncionamento = "1,2,3,4,5"
+                DiasFuncionamento = "1,2,3,4,5",
+                IsDemo = true
             };
             context.Clinicas.Add(clinica);
             await context.SaveChangesAsync();
@@ -45,8 +53,12 @@ public static class SeedData
         }
         else
         {
-            clinica = context.Clinicas.First();
-            // Enrich clinic profile if still placeholder
+            clinica = context.Clinicas.First(c => c.Email == DemoEmail);
+            if (!clinica.IsDemo)
+            {
+                clinica.IsDemo = true;
+                await context.SaveChangesAsync();
+            }
             if (clinica.Nome is "Clínica Demo" or "")
             {
                 clinica.Nome = "Clínica Sorriso & Saúde";
@@ -112,12 +124,20 @@ public static class SeedData
 
     /// <summary>
     /// Populates demo data. Safe to call after reset-demo or on empty DB.
-    /// Fills missing operational data (agenda, prontuários, etc.) even if patients already exist.
+    /// Fills missing operational data (agenda, prontuários, módulos, etc.) even if patients already exist.
+    /// Only applies to the demo clinic (IsDemo / demo@clinica.com).
     /// </summary>
     public static async Task PopulateDemoDataAsync(ClinicaXDbContext context)
     {
-        var clinica = context.Clinicas.FirstOrDefault();
+        // Somente a clínica demo recebe dados mockados — contas reais ficam vazias até o uso.
+        var clinica = context.Clinicas.FirstOrDefault(c => c.Email == DemoEmail)
+                      ?? context.Clinicas.FirstOrDefault(c => c.IsDemo);
         if (clinica is null) return;
+        if (!clinica.IsDemo)
+        {
+            clinica.IsDemo = true;
+            await context.SaveChangesAsync();
+        }
 
         // ── Serviços ──────────────────────────────────────────────
         if (!context.Servicos.Any(s => s.ClinicaId == clinica.Id))
@@ -381,6 +401,26 @@ public static class SeedData
                 EnviadaEm = DateTime.UtcNow.AddHours(-5),
                 Lida = true
             });
+            notifs.Add(new Notificacao
+            {
+                ClinicaId = clinica.Id,
+                PacienteId = P(5),
+                Tipo = TipoNotificacao.Lembrete,
+                Mensagem = "Sua teleconsulta de retorno de bruxismo é amanhã às 10:00. Acesse pela sala virtual.",
+                Status = StatusNotificacao.Enviada,
+                EnviadaEm = DateTime.UtcNow.AddHours(-6),
+                Lida = false
+            });
+            notifs.Add(new Notificacao
+            {
+                ClinicaId = clinica.Id,
+                PacienteId = P(2),
+                Tipo = TipoNotificacao.Lembrete,
+                Mensagem = "Camila, sua revisão gestante é hoje às 10:00. Estamos te esperando!",
+                Status = StatusNotificacao.Enviada,
+                EnviadaEm = DateTime.UtcNow.AddMinutes(-90),
+                Lida = true
+            });
 
             context.Notificacoes.AddRange(notifs);
             await context.SaveChangesAsync();
@@ -399,7 +439,708 @@ public static class SeedData
                 new Evento { ClinicaId = clinica.Id, PacienteId = P(10), Tipo = TipoEvento.AgendamentoCriado, Descricao = "Sessão de clareamento concluída", CriadoEm = DateTime.UtcNow.AddDays(-1) },
                 new Evento { ClinicaId = clinica.Id, PacienteId = P(0), Tipo = TipoEvento.AgendamentoCriado, Descricao = "Consulta de hoje confirmada — 08:00", CriadoEm = DateTime.UtcNow.AddHours(-12) },
                 new Evento { ClinicaId = clinica.Id, PacienteId = P(4), Tipo = TipoEvento.PacienteEditado, Descricao = "Observações clínicas atualizadas", CriadoEm = DateTime.UtcNow.AddHours(-4) },
-                new Evento { ClinicaId = clinica.Id, PacienteId = P(2), Tipo = TipoEvento.NotificacaoEnviada, Descricao = "Confirmação enviada via WhatsApp", CriadoEm = DateTime.UtcNow.AddHours(-1) }
+                new Evento { ClinicaId = clinica.Id, PacienteId = P(2), Tipo = TipoEvento.NotificacaoEnviada, Descricao = "Confirmação enviada via WhatsApp", CriadoEm = DateTime.UtcNow.AddHours(-1) },
+                new Evento { ClinicaId = clinica.Id, PacienteId = P(5), Tipo = TipoEvento.AgendamentoCriado, Descricao = "Teleconsulta de retorno bruxismo agendada", CriadoEm = DateTime.UtcNow.AddDays(-3) },
+                new Evento { ClinicaId = clinica.Id, PacienteId = P(7), Tipo = TipoEvento.AgendamentoCriado, Descricao = "Canal 46 — obturação concluída", CriadoEm = DateTime.UtcNow.AddDays(-1) },
+                new Evento { ClinicaId = clinica.Id, PacienteId = P(6), Tipo = TipoEvento.NotificacaoEnviada, Descricao = "Lembrete de retorno prótese enviado", CriadoEm = DateTime.UtcNow.AddHours(-8) },
+                new Evento { ClinicaId = clinica.Id, PacienteId = P(10), Tipo = TipoEvento.AgendamentoCriado, Descricao = "2ª sessão de clareamento agendada", CriadoEm = DateTime.UtcNow.AddHours(-2) },
+                new Evento { ClinicaId = clinica.Id, PacienteId = P(9), Tipo = TipoEvento.AgendamentoCriado, Descricao = "Consulta pediátrica realizada — flúor aplicado", CriadoEm = DateTime.UtcNow.AddDays(-1) }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        await PopulateModulosDemoAsync(context, clinica, pacientes, servicos);
+    }
+
+    /// <summary>Mock data for all new product modules (demo clinic only).</summary>
+    private static async Task PopulateModulosDemoAsync(
+        ClinicaXDbContext context,
+        Clinica clinica,
+        List<Paciente> pacientes,
+        List<Servico> servicos)
+    {
+        Guid P(int i) => pacientes[i % pacientes.Count].Id;
+
+        // Anamneses
+        if (!context.Anamneses.Any(a => a.ClinicaId == clinica.Id))
+        {
+            context.Anamneses.AddRange(
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(0), Titulo = "Anamnese inicial",
+                    Data = DateTime.Today.AddDays(-30),
+                    QueixaPrincipal = "Dor ao mastigar no lado direito",
+                    HistoricoMedico = "Sem comorbidades relevantes. Cirurgia de apendicite em 2010.",
+                    Alergias = "Penicilina",
+                    MedicamentosUso = "Nenhum contínuo",
+                    Habitos = "Café 2x/dia. Não fuma.",
+                    Observacoes = "Preferência por horários matutinos."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(1), Titulo = "Anamnese de retorno",
+                    Data = DateTime.Today.AddDays(-10),
+                    QueixaPrincipal = "Revisão de higiene",
+                    HistoricoMedico = "Hipertensão controlada",
+                    Alergias = "Nenhuma conhecida",
+                    MedicamentosUso = "Losartana 50mg",
+                    Habitos = "Sedentário",
+                    Observacoes = "Convênio Unimed"
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(2), Titulo = "Anamnese gestante",
+                    Data = DateTime.Today.AddDays(-5),
+                    QueixaPrincipal = "Sensibilidade gengival",
+                    HistoricoMedico = "Gestante — 2º trimestre",
+                    Alergias = "Nenhuma",
+                    MedicamentosUso = "Ácido fólico, polivitamínico",
+                    Habitos = "Alimentação equilibrada",
+                    Observacoes = "Evitar radiografias desnecessárias"
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(3), Titulo = "Anamnese diabetes",
+                    Data = DateTime.Today.AddDays(-15),
+                    QueixaPrincipal = "Retorno para controle glicêmico",
+                    HistoricoMedico = "Diabetes tipo 2 há 8 anos. Metformina 850mg 2x/dia.",
+                    Alergias = "Sulfas",
+                    MedicamentosUso = "Metformina 850mg, Losartana 50mg",
+                    Habitos = "Ativo. Dieta controlada. Não fuma.",
+                    Observacoes = "Glicemia de jejum 126. HbA1c 7.2%."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(4), Titulo = "Anamnese clareamento",
+                    Data = DateTime.Today.AddDays(-8),
+                    QueixaPrincipal = "Desejo de clareamento dental",
+                    HistoricoMedico = "Ansiedade controlada com escitalopram 10mg.",
+                    Alergias = "Nenhuma",
+                    MedicamentosUso = "Escitalopram 10mg",
+                    Habitos = "Não fuma. Bebe café diariamente.",
+                    Observacoes = "Paciente com alta demanda estética. Foto de evolução solicitada."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(5), Titulo = "Anamnese bruxismo",
+                    Data = DateTime.Today.AddDays(-20),
+                    QueixaPrincipal = "Dor na ATM e dor de cabeça ao acordar",
+                    HistoricoMedico = "Atleta profissional. Bruxismo noturno há 2 anos.",
+                    Alergias = "Nenhuma",
+                    MedicamentosUso = "Nenhum",
+                    Habitos = "Treina 6x/semana. Dorme 7h em média.",
+                    Observacoes = "Placa oclusal indicada. Encaminhado para fisioterapia."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(6), Titulo = "Anamnese prótese",
+                    Data = DateTime.Today.AddDays(-25),
+                    QueixaPrincipal = "Desconforto com prótese parcial",
+                    HistoricoMedico = "Prótese parcial fixa há 5 anos. Perda de dente suporte.",
+                    Alergias = "Metal (níquel)",
+                    MedicamentosUso = "Nenhum",
+                    Habitos = "Não fuma. Alimentação normal.",
+                    Observacoes = "Avaliação para reabilitação protética completa."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(7), Titulo = "Anamnese implante",
+                    Data = DateTime.Today.AddDays(-45),
+                    QueixaPrincipal = "Acompanhamento pós-implante",
+                    HistoricoMedico = "Implante dentário em andamento — dente 36. 2ª fase cirúrgica.",
+                    Alergias = "Nenhuma",
+                    MedicamentosUso = "Amoxicilina 500mg 8/8h (pós-cirúrgico)",
+                    Habitos = "Não fuma. Boa higiene oral.",
+                    Observacoes = "Cicatrização satisfatória. Próxima etapa: prótese sobre implante."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(8), Titulo = "Anamnese pós-ortodontia",
+                    Data = DateTime.Today.AddDays(-12),
+                    QueixaPrincipal = "Manutenção de ortodontia",
+                    HistoricoMedico = "Ortodontia finalizada em 2025.使用 retenção fixa inferior.",
+                    Alergias = "Nenhuma",
+                    MedicamentosUso = "Nenhum",
+                    Habitos = "boa higiene oral. Evita alimentos duros.",
+                    Observacoes = "Retenção fixa íntegra. Evolução favorável."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(9), Titulo = "Anamnese pediátrica",
+                    Data = DateTime.Today.AddDays(-7),
+                    QueixaPrincipal = "Consulta de rotina — dentição decídua",
+                    HistoricoMedico = "Sem histórico de cáries. Vacinas em dia.",
+                    Alergias = "Nenhuma",
+                    MedicamentosUso = "Nenhum",
+                    Habitos = "Escovação supervisionada 3x/dia. Sem chupeta.",
+                    Observacoes = "Acompanhamento semestral. Paciente colaborativo."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(10), Titulo = "Anamnese clareamento",
+                    Data = DateTime.Today.AddDays(-3),
+                    QueixaPrincipal = " Clareamento dental — retorno sessão 2",
+                    HistoricoMedico = "Clareamento em andamento. 1ª sessão concluída.",
+                    Alergias = "Nenhuma",
+                    MedicamentosUso = "Nenhum",
+                    Habitos = "Não fuma. Reduziu consumo de café.",
+                    Observacoes = "Sensibilidade leve pós-sessão 1. Melhora da coloração."
+                },
+                new Anamnese
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(11), Titulo = "Anamnese pré-cirúrgica",
+                    Data = DateTime.Today.AddDays(-18),
+                    QueixaPrincipal = "Extração de siso incluso",
+                    HistoricoMedico = "Uso de anticoagulante (varfarina). Necessário suspender 5 dias antes.",
+                    Alergias = "Ibuprofeno",
+                    MedicamentosUso = "Varfarina 5mg, Omeprazol 20mg",
+                    Habitos = "Não fuma. Evita álcool.",
+                    Observacoes = "Avaliação hematológica pré-cirúrgica obrigatória."
+                });
+            await context.SaveChangesAsync();
+        }
+
+        // Contratos
+        if (!context.Contratos.Any(c => c.ClinicaId == clinica.Id))
+        {
+            context.Contratos.AddRange(
+                new Contrato
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(0),
+                    Titulo = "Termo de consentimento — restauração",
+                    Conteudo = "Autorizo o procedimento de restauração em resina no elemento 16, ciente dos riscos e benefícios.",
+                    Status = StatusContrato.Assinado, EnviadoEm = DateTime.UtcNow.AddDays(-14), AssinadoEm = DateTime.UtcNow.AddDays(-13),
+                    AssinaturaNome = "Ana Beatriz Costa"
+                },
+                new Contrato
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(10),
+                    Titulo = "Termo — clareamento dental",
+                    Conteudo = "Consentimento informado para clareamento em consultório com peróxido de hidrogênio.",
+                    Status = StatusContrato.Enviado, EnviadoEm = DateTime.UtcNow.AddDays(-2)
+                },
+                new Contrato
+                {
+                    ClinicaId = clinica.Id, PacienteId = null,
+                    Titulo = "Modelo — LGPD e privacidade",
+                    Conteudo = "Modelo padrão de autorização de uso de dados pessoais e imagens clínicas conforme LGPD.",
+                    Status = StatusContrato.Rascunho
+                },
+                new Contrato
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(5),
+                    Titulo = "Termo — placa oclusal para bruxismo",
+                    Conteudo = "Autorizo a confecção e uso de placa oclusal para tratamento de bruxismo, ciente das instruções de uso.",
+                    Status = StatusContrato.Assinado, EnviadoEm = DateTime.UtcNow.AddDays(-20), AssinadoEm = DateTime.UtcNow.AddDays(-19),
+                    AssinaturaNome = "Felipe Augusto Dias"
+                },
+                new Contrato
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(11),
+                    Titulo = "Termo — extração de siso",
+                    Conteudo = "Consentimento para exodontia do 3º molar inferior direito sob anestesia local. Ciente dos riscos de parestesia.",
+                    Status = StatusContrato.Assinado, EnviadoEm = DateTime.UtcNow.AddDays(-22), AssinadoEm = DateTime.UtcNow.AddDays(-21),
+                    AssinaturaNome = "Marcelo Vieira Lopes"
+                },
+                new Contrato
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(7),
+                    Titulo = "Termo — tratamento endodôntico",
+                    Conteudo = "Autorizo o tratamento de canal no dente 46, ciente de que poderá ser necessário tratamento cirúrgico adicional.",
+                    Status = StatusContrato.Assinado, EnviadoEm = DateTime.UtcNow.AddDays(-30), AssinadoEm = DateTime.UtcNow.AddDays(-29),
+                    AssinaturaNome = "Henrique Carvalho Melo"
+                });
+            await context.SaveChangesAsync();
+        }
+
+        // WhatsApp central
+        if (!context.WhatsAppConversas.Any(c => c.ClinicaId == clinica.Id))
+        {
+            var c1 = new WhatsAppConversa
+            {
+                ClinicaId = clinica.Id, PacienteId = P(0), Telefone = "(11) 98765-4321",
+                NomeContato = "Ana Beatriz Costa", UltimaMensagemEm = DateTime.UtcNow.AddMinutes(-40), NaoLida = true
+            };
+            var c2 = new WhatsAppConversa
+            {
+                ClinicaId = clinica.Id, PacienteId = P(1), Telefone = "(11) 97654-3210",
+                NomeContato = "Bruno Henrique Alves", UltimaMensagemEm = DateTime.UtcNow.AddHours(-3), NaoLida = false
+            };
+            var c3 = new WhatsAppConversa
+            {
+                ClinicaId = clinica.Id, PacienteId = P(4), Telefone = "(11) 94321-0987",
+                NomeContato = "Eduarda Lima Nogueira", UltimaMensagemEm = DateTime.UtcNow.AddHours(-1), NaoLida = true
+            };
+            var c4 = new WhatsAppConversa
+            {
+                ClinicaId = clinica.Id, PacienteId = P(5), Telefone = "(11) 93210-9876",
+                NomeContato = "Felipe Augusto Dias", UltimaMensagemEm = DateTime.UtcNow.AddHours(-6), NaoLida = false
+            };
+            var c5 = new WhatsAppConversa
+            {
+                ClinicaId = clinica.Id, PacienteId = P(2), Telefone = "(11) 96543-2109",
+                NomeContato = "Camila Ferreira Santos", UltimaMensagemEm = DateTime.UtcNow.AddMinutes(-90), NaoLida = true
+            };
+            context.WhatsAppConversas.AddRange(c1, c2, c3, c4, c5);
+            await context.SaveChangesAsync();
+
+            context.WhatsAppMensagens.AddRange(
+                new WhatsAppMensagem { ConversaId = c1.Id, Direcao = DirecaoMensagem.Saida, Conteudo = "Olá Ana! Lembrete: consulta hoje às 08:00.", Status = StatusMensagemWhatsApp.Entregue, EnviadaEm = DateTime.UtcNow.AddHours(-12), Automatica = true },
+                new WhatsAppMensagem { ConversaId = c1.Id, Direcao = DirecaoMensagem.Entrada, Conteudo = "Oi! Confirmado, estarei lá 😊", Status = StatusMensagemWhatsApp.Lida, EnviadaEm = DateTime.UtcNow.AddHours(-11) },
+                new WhatsAppMensagem { ConversaId = c1.Id, Direcao = DirecaoMensagem.Saida, Conteudo = "Perfeito! Até logo.", Status = StatusMensagemWhatsApp.Enviada, EnviadaEm = DateTime.UtcNow.AddMinutes(-40) },
+                new WhatsAppMensagem { ConversaId = c2.Id, Direcao = DirecaoMensagem.Saida, Conteudo = "Bruno, sua limpeza está confirmada para hoje às 09:00.", Status = StatusMensagemWhatsApp.Entregue, EnviadaEm = DateTime.UtcNow.AddHours(-5), Automatica = true },
+                new WhatsAppMensagem { ConversaId = c2.Id, Direcao = DirecaoMensagem.Entrada, Conteudo = "Ok, obrigado!", Status = StatusMensagemWhatsApp.Lida, EnviadaEm = DateTime.UtcNow.AddHours(-3) },
+                new WhatsAppMensagem { ConversaId = c3.Id, Direcao = DirecaoMensagem.Saida, Conteudo = "Eduarda, temos horário para avaliação de clareamento amanhã às 11h. Confirma?", Status = StatusMensagemWhatsApp.Enviada, EnviadaEm = DateTime.UtcNow.AddHours(-1), Automatica = true },
+                new WhatsAppMensagem { ConversaId = c4.Id, Direcao = DirecaoMensagem.Saida, Conteudo = "Felipe, sua teleconsulta de retorno de bruxismo está agendada para amanhã às 10:00.", Status = StatusMensagemWhatsApp.Entregue, EnviadaEm = DateTime.UtcNow.AddHours(-6), Automatica = true },
+                new WhatsAppMensagem { ConversaId = c4.Id, Direcao = DirecaoMensagem.Entrada, Conteudo = "Perfeito, vou entrar na sala virtual no horário!", Status = StatusMensagemWhatsApp.Lida, EnviadaEm = DateTime.UtcNow.AddHours(-5) },
+                new WhatsAppMensagem { ConversaId = c5.Id, Direcao = DirecaoMensagem.Saida, Conteudo = "Camila, lembrete: sua revisão gestante está marcada para hoje às 10:00.", Status = StatusMensagemWhatsApp.Entregue, EnviadaEm = DateTime.UtcNow.AddMinutes(-90), Automatica = true },
+                new WhatsAppMensagem { ConversaId = c5.Id, Direcao = DirecaoMensagem.Entrada, Conteudo = "Obrigada! Estarei lá ✨", Status = StatusMensagemWhatsApp.Lida, EnviadaEm = DateTime.UtcNow.AddMinutes(-85) }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // Injetáveis
+        if (!context.PlanosInjetaveis.Any(p => p.ClinicaId == clinica.Id))
+        {
+            context.PlanosInjetaveis.AddRange(
+                new PlanoInjetavel
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(4), Substancia = "Toxina botulínica",
+                    Protocolo = "Full face — 40U", AreaAplicacao = "Testa, glabela, periocular",
+                    DataInicio = DateTime.Today.AddDays(-60), TotalSessoes = 4, SessoesRealizadas = 2,
+                    IntervaloDias = 120, ProximaSessao = DateTime.Today.AddDays(60),
+                    Status = StatusPlanoInjetavel.Ativo, Observacoes = "Boa resposta na 1ª aplicação"
+                },
+                new PlanoInjetavel
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(10), Substancia = "Ácido hialurônico",
+                    Protocolo = "Preenchimento labial 1ml", AreaAplicacao = "Lábios",
+                    DataInicio = DateTime.Today.AddDays(-20), TotalSessoes = 2, SessoesRealizadas = 1,
+                    IntervaloDias = 30, ProximaSessao = DateTime.Today.AddDays(10),
+                    Status = StatusPlanoInjetavel.Ativo
+                },
+                new PlanoInjetavel
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(6), Substancia = "Bioestimulador (PLLA)",
+                    Protocolo = "3 sessões com intervalo de 45 dias", AreaAplicacao = "Face média",
+                    DataInicio = DateTime.Today.AddDays(-100), TotalSessoes = 3, SessoesRealizadas = 3,
+                    IntervaloDias = 45, Status = StatusPlanoInjetavel.Concluido
+                },
+                new PlanoInjetavel
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(1), Substancia = "Toxina botulínica",
+                    Protocolo = "Glabela — 20U", AreaAplicacao = "Glabela, corrugador",
+                    DataInicio = DateTime.Today.AddDays(-90), TotalSessoes = 3, SessoesRealizadas = 1,
+                    IntervaloDias = 120, ProximaSessao = DateTime.Today.AddDays(30),
+                    Status = StatusPlanoInjetavel.Ativo, Observacoes = "Primeira aplicação. Aguardar retorno."
+                },
+                new PlanoInjetavel
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(0), Substancia = "Ácido hialurônico",
+                    Protocolo = "Preenchimento malar — 1ml", AreaAplicacao = "Maçãs do rosto",
+                    DataInicio = DateTime.Today.AddDays(-45), TotalSessoes = 2, SessoesRealizadas = 2,
+                    IntervaloDias = 30, Status = StatusPlanoInjetavel.Concluido,
+                    Observacoes = "Resultado satisfatório. Retorno em 12 meses."
+                });
+            await context.SaveChangesAsync();
+        }
+
+        // Telemedicina
+        if (!context.Teleconsultas.Any(t => t.ClinicaId == clinica.Id))
+        {
+            context.Teleconsultas.AddRange(
+                new Teleconsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(5),
+                    LinkSala = "https://meet.clinicax.app/sala/demo01abc",
+                    DataHoraInicio = DateTime.Today.AddDays(1).AddHours(10),
+                    Status = StatusTeleconsulta.Agendada, Observacoes = "Retorno de bruxismo"
+                },
+                new Teleconsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(8),
+                    LinkSala = "https://meet.clinicax.app/sala/demo02xyz",
+                    DataHoraInicio = DateTime.Today.AddDays(-3).AddHours(15),
+                    DataHoraFim = DateTime.Today.AddDays(-3).AddHours(15).AddMinutes(25),
+                    Status = StatusTeleconsulta.Concluida, Observacoes = "Orientações pós-ortodontia"
+                },
+                new Teleconsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(0),
+                    LinkSala = "https://meet.clinicax.app/sala/demo03def",
+                    DataHoraInicio = DateTime.Today.AddDays(2).AddHours(14),
+                    Status = StatusTeleconsulta.Agendada, Observacoes = "Avaliação de dor no dente 16"
+                },
+                new Teleconsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(3),
+                    LinkSala = "https://meet.clinicax.app/sala/demo04ghi",
+                    DataHoraInicio = DateTime.Today.AddDays(-1).AddHours(10),
+                    DataHoraFim = DateTime.Today.AddDays(-1).AddHours(10).AddMinutes(30),
+                    Status = StatusTeleconsulta.Concluida, Observacoes = "Controle glicêmico e orientação bucal"
+                },
+                new Teleconsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(4),
+                    LinkSala = "https://meet.clinicax.app/sala/demo05jkl",
+                    DataHoraInicio = DateTime.Today.AddHours(16),
+                    Status = StatusTeleconsulta.Agendada, Observacoes = "Avaliação de clareamento dental"
+                },
+                new Teleconsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(6),
+                    LinkSala = "https://meet.clinicax.app/sala/demo06mno",
+                    DataHoraInicio = DateTime.Today.AddDays(-5).AddHours(9),
+                    DataHoraFim = DateTime.Today.AddDays(-5).AddHours(9).AddMinutes(20),
+                    Status = StatusTeleconsulta.Concluida, Observacoes = "Discussão sobre prótese parcial"
+                },
+                new Teleconsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(10),
+                    LinkSala = "https://meet.clinicax.app/sala/demo07pqr",
+                    DataHoraInicio = DateTime.Today.AddDays(3).AddHours(11),
+                    Status = StatusTeleconsulta.Agendada, Observacoes = "2ª sessão de clareamento"
+                });
+            await context.SaveChangesAsync();
+        }
+
+        // Financeiro
+        if (!context.LancamentosFinanceiros.Any(l => l.ClinicaId == clinica.Id))
+        {
+            context.LancamentosFinanceiros.AddRange(
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(0), Tipo = TipoLancamento.Receita, Categoria = "Procedimentos", Descricao = "Restauração 16", Valor = 320m, Data = DateTime.Today.AddDays(-2), Status = StatusLancamento.Pago, FormaPagamento = "PIX", DataPagamento = DateTime.Today.AddDays(-2) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(10), Tipo = TipoLancamento.Receita, Categoria = "Estética", Descricao = "Clareamento sessão 1", Valor = 890m, Data = DateTime.Today.AddDays(-1), Status = StatusLancamento.Pago, FormaPagamento = "Cartão", DataPagamento = DateTime.Today.AddDays(-1) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(11), Tipo = TipoLancamento.Receita, Categoria = "Cirurgia", Descricao = "Extração siso", Valor = 280m, Data = DateTime.Today.AddDays(-2), Status = StatusLancamento.Pago, FormaPagamento = "Dinheiro", DataPagamento = DateTime.Today.AddDays(-2) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(4), Tipo = TipoLancamento.Receita, Categoria = "Avaliação", Descricao = "Consulta avaliação", Valor = 180m, Data = DateTime.Today, Status = StatusLancamento.Pendente, DataVencimento = DateTime.Today.AddDays(7) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, Tipo = TipoLancamento.Despesa, Categoria = "Insumos", Descricao = "Compra de resina composta", Valor = 450m, Data = DateTime.Today.AddDays(-5), Status = StatusLancamento.Pago, FormaPagamento = "PIX", DataPagamento = DateTime.Today.AddDays(-5) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, Tipo = TipoLancamento.Despesa, Categoria = "Aluguel", Descricao = "Aluguel sala — mês atual", Valor = 3500m, Data = DateTime.Today.AddDays(-3), Status = StatusLancamento.Pago, FormaPagamento = "Transferência", DataPagamento = DateTime.Today.AddDays(-3) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, Tipo = TipoLancamento.Despesa, Categoria = "Marketing", Descricao = "Anúncios Instagram", Valor = 600m, Data = DateTime.Today, Status = StatusLancamento.Pendente, DataVencimento = DateTime.Today.AddDays(5) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(1), Tipo = TipoLancamento.Receita, Categoria = "Procedimentos", Descricao = "Limpeza profissional", Valor = 220m, Data = DateTime.Today.AddDays(-1), Status = StatusLancamento.Pago, FormaPagamento = "PIX", DataPagamento = DateTime.Today.AddDays(-1) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(3), Tipo = TipoLancamento.Receita, Categoria = "Procedimentos", Descricao = "Restauração 26", Valor = 320m, Data = DateTime.Today, Status = StatusLancamento.Pendente, DataVencimento = DateTime.Today.AddDays(3) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(7), Tipo = TipoLancamento.Receita, Categoria = "Endodontia", Descricao = "Canal 46 — sessão 2", Valor = 650m, Data = DateTime.Today.AddDays(-1), Status = StatusLancamento.Pago, FormaPagamento = "Cartão", DataPagamento = DateTime.Today.AddDays(-1) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(9), Tipo = TipoLancamento.Receita, Categoria = "Prevenção", Descricao = "Aplicação flúor pediátrico", Valor = 90m, Data = DateTime.Today.AddDays(-1), Status = StatusLancamento.Pago, FormaPagamento = "Dinheiro", DataPagamento = DateTime.Today.AddDays(-1) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, PacienteId = P(5), Tipo = TipoLancamento.Receita, Categoria = "Avaliação", Descricao = "Consulta avaliação bruxismo", Valor = 180m, Data = DateTime.Today.AddDays(-5), Status = StatusLancamento.Pago, FormaPagamento = "PIX", DataPagamento = DateTime.Today.AddDays(-5) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, Tipo = TipoLancamento.Despesa, Categoria = "Materiais", Descricao = "Compra de luvas procedimento", Valor = 280m, Data = DateTime.Today.AddDays(-7), Status = StatusLancamento.Pago, FormaPagamento = "PIX", DataPagamento = DateTime.Today.AddDays(-7) },
+                new LancamentoFinanceiro { ClinicaId = clinica.Id, Tipo = TipoLancamento.Despesa, Categoria = "Software", Descricao = "Assinatura ClinicaX", Valor = 199m, Data = DateTime.Today.AddDays(-2), Status = StatusLancamento.Pago, FormaPagamento = "Cartão", DataPagamento = DateTime.Today.AddDays(-2) }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // Estoque
+        if (!context.ProdutosEstoque.Any(p => p.ClinicaId == clinica.Id))
+        {
+            var pResina = new ProdutoEstoque { ClinicaId = clinica.Id, Nome = "Resina composta A2", Sku = "RES-A2", Unidade = "ser", Quantidade = 12, QuantidadeMinima = 5, CustoUnitario = 45m, PrecoVenda = 0, Categoria = "Materiais" };
+            var pToxina = new ProdutoEstoque { ClinicaId = clinica.Id, Nome = "Toxina botulínica 100U", Sku = "TOX-100", Unidade = "frs", Quantidade = 3, QuantidadeMinima = 4, CustoUnitario = 890m, PrecoVenda = 0, Categoria = "Injetáveis" };
+            var pLuva = new ProdutoEstoque { ClinicaId = clinica.Id, Nome = "Luvas procedimento M", Sku = "LUV-M", Unidade = "cx", Quantidade = 8, QuantidadeMinima = 3, CustoUnitario = 28m, PrecoVenda = 0, Categoria = "EPI" };
+            var pKit = new ProdutoEstoque { ClinicaId = clinica.Id, Nome = "Kit clareamento home", Sku = "CLA-HOME", Unidade = "un", Quantidade = 15, QuantidadeMinima = 5, CustoUnitario = 120m, PrecoVenda = 280m, Categoria = "Venda" };
+            var pAH = new ProdutoEstoque { ClinicaId = clinica.Id, Nome = "Ácido hialurônico 1ml", Sku = "AH-1ML", Unidade = "un", Quantidade = 6, QuantidadeMinima = 3, CustoUnitario = 450m, PrecoVenda = 0, Categoria = "Injetáveis" };
+            var pFio = new ProdutoEstoque { ClinicaId = clinica.Id, Nome = "Fio dental 50m", Sku = "FIO-50", Unidade = "un", Quantidade = 20, QuantidadeMinima = 10, CustoUnitario = 8m, PrecoVenda = 15m, Categoria = "Venda" };
+            var pMascara = new ProdutoEstoque { ClinicaId = clinica.Id, Nome = "Máscara cirúrgica caixa 50un", Sku = "MASC-50", Unidade = "cx", Quantidade = 10, QuantidadeMinima = 5, CustoUnitario = 22m, PrecoVenda = 0, Categoria = "EPI" };
+            var pGel = new ProdutoEstoque { ClinicaId = clinica.Id, Nome = "Gel clareador 35% H2O2", Sku = "GEL-35", Unidade = "frs", Quantidade = 4, QuantidadeMinima = 3, CustoUnitario = 180m, PrecoVenda = 0, Categoria = "Insumos" };
+            context.ProdutosEstoque.AddRange(pResina, pToxina, pLuva, pKit, pAH, pFio, pMascara, pGel);
+            await context.SaveChangesAsync();
+
+            context.MovimentacoesEstoque.AddRange(
+                new MovimentacaoEstoque { ClinicaId = clinica.Id, ProdutoId = pResina.Id, Tipo = TipoMovimentacaoEstoque.Entrada, Quantidade = 20, Motivo = "Compra fornecedor", Data = DateTime.UtcNow.AddDays(-15) },
+                new MovimentacaoEstoque { ClinicaId = clinica.Id, ProdutoId = pResina.Id, Tipo = TipoMovimentacaoEstoque.Saida, Quantidade = 8, Motivo = "Uso em procedimentos", Data = DateTime.UtcNow.AddDays(-2) },
+                new MovimentacaoEstoque { ClinicaId = clinica.Id, ProdutoId = pToxina.Id, Tipo = TipoMovimentacaoEstoque.Entrada, Quantidade = 5, Motivo = "Compra", Data = DateTime.UtcNow.AddDays(-10) },
+                new MovimentacaoEstoque { ClinicaId = clinica.Id, ProdutoId = pToxina.Id, Tipo = TipoMovimentacaoEstoque.Saida, Quantidade = 2, Motivo = "Aplicações", Data = DateTime.UtcNow.AddDays(-1) },
+                new MovimentacaoEstoque { ClinicaId = clinica.Id, ProdutoId = pAH.Id, Tipo = TipoMovimentacaoEstoque.Entrada, Quantidade = 10, Motivo = "Compra fornecedor", Data = DateTime.UtcNow.AddDays(-20) },
+                new MovimentacaoEstoque { ClinicaId = clinica.Id, ProdutoId = pAH.Id, Tipo = TipoMovimentacaoEstoque.Saida, Quantidade = 4, Motivo = "Procedimentos de preenchimento", Data = DateTime.UtcNow.AddDays(-3) },
+                new MovimentacaoEstoque { ClinicaId = clinica.Id, ProdutoId = pGel.Id, Tipo = TipoMovimentacaoEstoque.Entrada, Quantidade = 8, Motivo = "Compra", Data = DateTime.UtcNow.AddDays(-12) },
+                new MovimentacaoEstoque { ClinicaId = clinica.Id, ProdutoId = pGel.Id, Tipo = TipoMovimentacaoEstoque.Saida, Quantidade = 4, Motivo = "Sessões de clareamento", Data = DateTime.UtcNow.AddDays(-1) }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // Vendas
+        if (!context.Vendas.Any(v => v.ClinicaId == clinica.Id))
+        {
+            var kit = context.ProdutosEstoque.FirstOrDefault(p => p.ClinicaId == clinica.Id && p.Sku == "CLA-HOME");
+            var v1 = new Venda
+            {
+                ClinicaId = clinica.Id, PacienteId = P(10), Data = DateTime.Today.AddDays(-1),
+                Subtotal = 280m, Desconto = 0, Total = 280m, Status = StatusVenda.Paga, FormaPagamento = "PIX",
+                Itens = new List<VendaItem>
+                {
+                    new() { Descricao = "Kit clareamento home", Quantidade = 1, ValorUnitario = 280m, ProdutoId = kit?.Id }
+                }
+            };
+            var v2 = new Venda
+            {
+                ClinicaId = clinica.Id, PacienteId = P(0), Data = DateTime.Today,
+                Subtotal = 460m, Desconto = 10m, Total = 450m, Status = StatusVenda.Aberta,
+                Itens = new List<VendaItem>
+                {
+                    new() { Descricao = "Consulta avaliação", Quantidade = 1, ValorUnitario = 180m, ServicoId = servicos.FirstOrDefault()?.Id },
+                    new() { Descricao = "Kit clareamento home", Quantidade = 1, ValorUnitario = 280m, ProdutoId = kit?.Id }
+                }
+            };
+            var v3 = new Venda
+            {
+                ClinicaId = clinica.Id, PacienteId = P(5), Data = DateTime.Today.AddDays(-20),
+                Subtotal = 180m, Desconto = 0, Total = 180m, Status = StatusVenda.Paga, FormaPagamento = "Cartão",
+                Itens = new List<VendaItem>
+                {
+                    new() { Descricao = "Placa oclusal para bruxismo", Quantidade = 1, ValorUnitario = 180m }
+                }
+            };
+            var v4 = new Venda
+            {
+                ClinicaId = clinica.Id, PacienteId = P(7), Data = DateTime.Today.AddDays(-1),
+                Subtotal = 650m, Desconto = 0, Total = 650m, Status = StatusVenda.Paga, FormaPagamento = "PIX",
+                Itens = new List<VendaItem>
+                {
+                    new() { Descricao = "Tratamento de canal — sessão 2", Quantidade = 1, ValorUnitario = 650m }
+                }
+            };
+            var v5 = new Venda
+            {
+                ClinicaId = clinica.Id, PacienteId = P(11), Data = DateTime.Today.AddDays(-2),
+                Subtotal = 280m, Desconto = 0, Total = 280m, Status = StatusVenda.Paga, FormaPagamento = "Dinheiro",
+                Itens = new List<VendaItem>
+                {
+                    new() { Descricao = "Extração simples", Quantidade = 1, ValorUnitario = 280m }
+                }
+            };
+            context.Vendas.AddRange(v1, v2, v3, v4, v5);
+            await context.SaveChangesAsync();
+        }
+
+        // Notas fiscais
+        if (!context.NotasFiscais.Any(n => n.ClinicaId == clinica.Id))
+        {
+            var vendasPagas = context.Vendas.Where(v => v.ClinicaId == clinica.Id && v.Status == StatusVenda.Paga).ToList();
+            context.NotasFiscais.AddRange(
+                new NotaFiscal
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(10), VendaId = vendasPagas.FirstOrDefault()?.Id,
+                    Numero = "000123", Serie = "1",
+                    ChaveAcesso = "35260711234567890123456789012345678901234567",
+                    Valor = 280m, DataEmissao = DateTime.Today.AddDays(-1),
+                    Status = StatusNotaFiscal.Emitida, DescricaoServico = "Kit clareamento home care"
+                },
+                new NotaFiscal
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(0),
+                    Numero = "000124", Serie = "1",
+                    Valor = 320m, DataEmissao = DateTime.Today.AddDays(-2),
+                    Status = StatusNotaFiscal.Emitida, DescricaoServico = "Restauração em resina"
+                },
+                new NotaFiscal
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(5),
+                    Numero = "000125", Serie = "1",
+                    Valor = 180m, DataEmissao = DateTime.Today.AddDays(-20),
+                    Status = StatusNotaFiscal.Emitida, DescricaoServico = "Placa oclusal para bruxismo"
+                },
+                new NotaFiscal
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(7),
+                    Numero = "000126", Serie = "1",
+                    Valor = 650m, DataEmissao = DateTime.Today.AddDays(-1),
+                    Status = StatusNotaFiscal.Emitida, DescricaoServico = "Tratamento endodôntico"
+                },
+                new NotaFiscal
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(11),
+                    Numero = "000127", Serie = "1",
+                    Valor = 280m, DataEmissao = DateTime.Today.AddDays(-2),
+                    Status = StatusNotaFiscal.Emitida, DescricaoServico = "Exodontia simples"
+                });
+            await context.SaveChangesAsync();
+        }
+
+        // Transcrições
+        if (!context.TranscricoesConsulta.Any(t => t.ClinicaId == clinica.Id))
+        {
+            context.TranscricoesConsulta.AddRange(
+                new TranscricaoConsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(0), Data = DateTime.Today.AddDays(-2),
+                    Texto = "Paciente relata dor residual leve após restauração. Exame clínico sem sinais de inflamação. Orientada higiene e retorno em 6 meses.",
+                    Resumo = "Evolução favorável pós-restauração; retorno em 6 meses.",
+                    Status = StatusTranscricao.Concluida, DuracaoSegundos = 420
+                },
+                new TranscricaoConsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(3), Data = DateTime.Today.AddDays(-1),
+                    Texto = "Segunda sessão de endodontia no 46. Instrumentação concluída. Medicação intracanal. Próxima sessão em 15 dias para obturação.",
+                    Resumo = "Endodontia 46 em andamento; próxima obturação em 15 dias.",
+                    Status = StatusTranscricao.Concluida, DuracaoSegundos = 900
+                },
+                new TranscricaoConsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(1), Data = DateTime.Today.AddDays(-1),
+                    Texto = "Profilaxia de rotina realizada. Remoção de cálculo supragengival. Orientação de escovação correta e uso de fio dental.",
+                    Resumo = "Limpeza profissional concluída; orientação de higiene reforçada.",
+                    Status = StatusTranscricao.Concluida, DuracaoSegundos = 600
+                },
+                new TranscricaoConsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(5), Data = DateTime.Today.AddDays(-20),
+                    Texto = "Avaliação de bruxismo. Paciente relata dor matinal na ATM e cefaleia. Exame: desgaste acentuado dos dentes posteriores. Indicação de placa oclusal.",
+                    Resumo = "Bruxismo noturno diagnosticado; placa oclusal indicada.",
+                    Status = StatusTranscricao.Concluida, DuracaoSegundos = 780
+                },
+                new TranscricaoConsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(10), Data = DateTime.Today.AddDays(-1),
+                    Texto = "Primeira sessão de clareamento com gel peróxido de hidrogênio a 35%. Três aplicações de 15 minutos. Sensibilidade leve no final.",
+                    Resumo = "Clareamento sessão 1 concluído; sensibilidade leve.",
+                    Status = StatusTranscricao.Concluida, DuracaoSegundos = 1200
+                },
+                new TranscricaoConsulta
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(9), Data = DateTime.Today.AddDays(-1),
+                    Texto = "Consulta pediátrica de rotina. Aplicação tópica de flúor. Orientação aos responsáveis sobre escovação supervisionada e dieta.",
+                    Resumo = "Flúor aplicado; orientação nutricional e de higiene.",
+                    Status = StatusTranscricao.Concluida, DuracaoSegundos = 360
+                }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // Portal do paciente
+        if (!context.PortalAcessos.Any(p => p.ClinicaId == clinica.Id))
+        {
+            context.PortalAcessos.AddRange(
+                new PortalAcesso
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(0),
+                    Email = "ana.beatriz@email.com", TokenAcesso = "demo-portal-ana01",
+                    Habilitado = true, Observacoes = "Acesso liberado para ver agenda e documentos"
+                },
+                new PortalAcesso
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(1),
+                    Email = "bruno.alves@email.com", TokenAcesso = "demo-portal-bru02",
+                    Habilitado = true
+                },
+                new PortalAcesso
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(5),
+                    Email = "felipe.dias@email.com", TokenAcesso = "demo-portal-fel03",
+                    Habilitado = true, Observacoes = "Acesso para acompanhar tratamento de bruxismo"
+                },
+                new PortalAcesso
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(10),
+                    Email = "larissa.campos@email.com", TokenAcesso = "demo-portal-lar04",
+                    Habilitado = true
+                },
+                new PortalAcesso
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(4),
+                    Email = "eduarda.nogueira@email.com", TokenAcesso = "demo-portal-edu05",
+                    Habilitado = false, Observacoes = "Acesso desabilitado — paciente solicitou"
+                });
+            await context.SaveChangesAsync();
+        }
+
+        // Avaliação facial IA
+        if (!context.AvaliacoesFaciais.Any(a => a.ClinicaId == clinica.Id))
+        {
+            context.AvaliacoesFaciais.AddRange(
+                new AvaliacaoFacial
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(4), Data = DateTime.Today.AddDays(-7),
+                    ResultadoJson = """{"simetria":88.5,"hidratacao":72.0,"volume":80.2,"rugas":35.0,"areas":["testa","glabela","malar"]}""",
+                    ScoreGeral = 82.5m,
+                    Observacoes = "Boa estrutura óssea; leve assimetria malar",
+                    Recomendacoes = "Toxina em glabela + bioestimulador malar direito"
+                },
+                new AvaliacaoFacial
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(10), Data = DateTime.Today.AddDays(-1),
+                    ResultadoJson = """{"simetria":91.0,"hidratacao":68.5,"volume":75.0,"rugas":42.0,"areas":["labios","olheiras"]}""",
+                    ScoreGeral = 78.0m,
+                    Recomendacoes = "Hidratação profunda e avaliação de preenchimento labial sutil"
+                },
+                new AvaliacaoFacial
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(1), Data = DateTime.Today.AddDays(-10),
+                    ResultadoJson = """{"simetria":85.0,"hidratacao":70.0,"volume":78.5,"rugas":28.0,"areas":["testa","glabela","periocular"]}""",
+                    ScoreGeral = 80.0m,
+                    Observacoes = "Paciente masculino, pele oleosa, rugas de expressão leves",
+                    Recomendacoes = "Toxina em glabela e corrugador. Skin care com retinol."
+                },
+                new AvaliacaoFacial
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(6), Data = DateTime.Today.AddDays(-15),
+                    ResultadoJson = """{"simetria":92.0,"hidratacao":75.0,"volume":82.0,"rugas":20.0,"areas":["malar","mandibula","colagena"]}""",
+                    ScoreGeral = 85.0m,
+                    Observacoes = "Evolução favorável após bioestimulador PLLA",
+                    Recomendacoes = "Manter protocolo de manutenção a cada 6 meses"
+                },
+                new AvaliacaoFacial
+                {
+                    ClinicaId = clinica.Id, PacienteId = P(0), Data = DateTime.Today.AddDays(-5),
+                    ResultadoJson = """{"simetria":89.0,"hidratacao":78.0,"volume":81.0,"rugas":25.0,"areas":["labios","malar","olheiras"]}""",
+                    ScoreGeral = 83.0m,
+                    Observacoes = "Pele hidratada, volume malar adequado, olheiras leves",
+                    Recomendacoes = "Preenchimento labial sutil + skincare antioxidante"
+                }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // Tarefas IA
+        if (!context.TarefasIa.Any(t => t.ClinicaId == clinica.Id))
+        {
+            context.TarefasIa.AddRange(
+                new TarefaIa { ClinicaId = clinica.Id, Titulo = "Confirmar consultas de amanhã", Descricao = "Enviar WhatsApp automático", Status = StatusTarefa.Pendente, Prioridade = PrioridadeTarefa.Alta, Prazo = DateTime.Today.AddDays(1), GeradaPorIa = true },
+                new TarefaIa { ClinicaId = clinica.Id, Titulo = "Reposição de toxina botulínica", Descricao = "Estoque abaixo do mínimo", Status = StatusTarefa.Pendente, Prioridade = PrioridadeTarefa.Alta, Prazo = DateTime.Today.AddDays(2), GeradaPorIa = true },
+                new TarefaIa { ClinicaId = clinica.Id, Titulo = "Assinar termo de clareamento — Eduarda", Descricao = "Contrato enviado, aguardando assinatura", Status = StatusTarefa.EmAndamento, Prioridade = PrioridadeTarefa.Media, PacienteId = P(4), GeradaPorIa = false },
+                new TarefaIa { ClinicaId = clinica.Id, Titulo = "Emitir NFS-e da semana", Descricao = "3 vendas pagas sem nota", Status = StatusTarefa.Pendente, Prioridade = PrioridadeTarefa.Media, GeradaPorIa = true },
+                new TarefaIa { ClinicaId = clinica.Id, Titulo = "Atualizar prontuário de Bruno", Descricao = "Limpeza realizada, sem registro no sistema", Status = StatusTarefa.Pendente, Prioridade = PrioridadeTarefa.Baixa, PacienteId = P(1), GeradaPorIa = true },
+                new TarefaIa { ClinicaId = clinica.Id, Titulo = "Agendar retorno para Camila", Descricao = "Revisão gestante em 15 dias", Status = StatusTarefa.Pendente, Prioridade = PrioridadeTarefa.Media, PacienteId = P(2), GeradaPorIa = true },
+                new TarefaIa { ClinicaId = clinica.Id, Titulo = "Verificar consentimento de Henrique", Descricao = "Termo de canal assinado, confirmar recebimento", Status = StatusTarefa.Concluida, Prioridade = PrioridadeTarefa.Baixa, PacienteId = P(7), GeradaPorIa = false, Prazo = DateTime.Today.AddDays(-1) },
+                new TarefaIa { ClinicaId = clinica.Id, Titulo = "Preparar material para teleconsulta", Descricao = "Felipe — retorno bruxismo amanhã 10h", Status = StatusTarefa.EmAndamento, Prioridade = PrioridadeTarefa.Alta, PacienteId = P(5), GeradaPorIa = false, Prazo = DateTime.Today.AddDays(1) }
+            );
+            await context.SaveChangesAsync();
+        }
+
+        // Textos IA
+        if (!context.TextosIa.Any(t => t.ClinicaId == clinica.Id))
+        {
+            context.TextosIa.AddRange(
+                new TextoIa
+                {
+                    ClinicaId = clinica.Id, Tipo = "whatsapp",
+                    Prompt = "Lembrete de consulta amanhã 11h clareamento",
+                    Resultado = "Olá! 😊 Lembrete: amanhã às 11h temos sua sessão de clareamento. Confirme com um OK. Até lá!"
+                },
+                new TextoIa
+                {
+                    ClinicaId = clinica.Id, Tipo = "email",
+                    Prompt = "Boas-vindas novo paciente",
+                    Resultado = "Assunto: Bem-vindo(a) à Clínica Sorriso & Saúde\n\nOlá!\n\nÉ um prazer ter você conosco. Nossa equipe está pronta para cuidar do seu sorriso.\n\nAtenciosamente,\nEquipe Clínica Sorriso & Saúde"
+                },
+                new TextoIa
+                {
+                    ClinicaId = clinica.Id, Tipo = "whatsapp",
+                    Prompt = "Confirmação de teleconsulta retorno bruxismo",
+                    Resultado = "Olá Felipe! 📱 Sua teleconsulta de retorno para acompanhamento do bruxismo está marcada para amanhã às 10:00. Acesse pela sala virtual: https://meet.clinicax.app/sala/demo01abc. Até lá!"
+                },
+                new TextoIa
+                {
+                    ClinicaId = clinica.Id, Tipo = "prontuario",
+                    Prompt = "Evolução pós-restauração Ana Beatriz",
+                    Resultado = "Evolução clínica\n\nQueixa: dor residual leve pós-restauração.\n\nExame: restauração íntegra, percussão negativa, sem sinais de inflamação.\n\nConduta: orientada higiene reforçada com fio dental. Retorno para profilaxia em 6 meses."
+                },
+                new TextoIa
+                {
+                    ClinicaId = clinica.Id, Tipo = "contrato",
+                    Prompt = "Termo de consentimento para implante dentário",
+                    Resultado = "TERMO DE CONSENTIMENTO INFORMADO — IMPLANTE DENTÁRIO\n\nEu, paciente abaixo assinado, declaro ter sido informado(a) sobre o procedimento de implante dentário, incluindo riscos, benefícios e alternativas.\n\nAutorizo a realização conforme orientações da equipe clínica.\n\nLocal e data: ____/____/________\nAssinatura: _______________________"
+                },
+                new TextoIa
+                {
+                    ClinicaId = clinica.Id, Tipo = "post",
+                    Prompt = "Dicas de higiene bucal para crianças",
+                    Resultado = "✨ Dicas para o sorriso das crianças!\n\n🪥 Escove os dentes 3x/dia com pasta fluoretada\n🍎 Evite doces antes de dormir\n📅 Visite o dentista a cada 6 meses\n\nAgende a avaliação pediátrica!\n\n#saudebucal #peds #clinicax"
+                }
             );
             await context.SaveChangesAsync();
         }

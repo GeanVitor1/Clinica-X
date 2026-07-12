@@ -1,7 +1,6 @@
-import { Component, signal, OnInit, AfterViewInit, inject, ElementRef, ViewChild } from '@angular/core';
+import { Component, signal, OnInit, OnDestroy, inject, ElementRef, ViewChild, NgZone, afterNextRender, Injector } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { gsap } from 'gsap';
-import { ToastService } from '../../../shared/services/toast.service';
 import { SkeletonComponent } from '../../../shared/components/skeleton.component';
 import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../services/dashboard.service';
 
@@ -17,12 +16,44 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
           <h1>Dashboard</h1>
           <span class="dash-badge">Demo</span>
         </div>
-        <button class="dash-bell" type="button" (click)="showDemoToast()">
+        <button class="dash-bell" type="button" (click)="toggleNotifPanel()">
           <svg width="18" height="18"><use href="#ic-bell"/></svg>
           @if (notificacoesPendentes() > 0) {
             <span class="bell-dot">{{ notificacoesPendentes() }}</span>
           }
         </button>
+        @if (notifPanelOpen()) {
+          <div class="notif-panel">
+            <div class="notif-panel-header">
+              <h3>Notifica&ccedil;&otilde;es</h3>
+              <span class="notif-count">{{ timeline().length }}</span>
+            </div>
+            <div class="notif-list">
+              @for (ev of timeline(); track ev.id) {
+                <div class="notif-item">
+                  <div class="notif-icon notif-icon--{{ ev.tipo }}">
+                    @switch (ev.tipo) {
+                      @case ('AgendamentoCriado') { <span>&#128197;</span> }
+                      @case ('AgendamentoCancelado') { <span>&#10007;</span> }
+                      @case ('AgendamentoRemarcado') { <span>&#128260;</span> }
+                      @case ('PacienteCriado') { <span>&#10003;</span> }
+                      @case ('PacienteEditado') { <span>&#9998;</span> }
+                      @case ('NotificacaoEnviada') { <span>&#128276;</span> }
+                      @default { <span>&#128204;</span> }
+                    }
+                  </div>
+                  <div class="notif-body">
+                    <p class="notif-msg">{{ ev.descricao }}</p>
+                    <span class="notif-time">{{ timeAgo(ev.criadoEm) }}</span>
+                  </div>
+                </div>
+              }
+              @if (timeline().length === 0) {
+                <div class="notif-empty">Nenhuma notifica&ccedil;&atilde;o</div>
+              }
+            </div>
+          </div>
+        }
       </header>
 
       @if (loading()) {
@@ -36,7 +67,7 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
           <app-skeleton variant="text" />
         </div>
       } @else {
-        <div class="kpi-grid" #cardsGrid>
+        <div class="dash-featured">
           <div class="kpi kpi--featured" #cardEl>
             <div class="kpi-top">
               <div class="kpi-icon kpi-icon--blue">
@@ -57,7 +88,9 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
               }
             </div>
           </div>
+        </div>
 
+        <div class="kpi-grid" #cardsGrid>
           <div class="kpi" #cardEl>
             <div class="kpi-top">
               <div class="kpi-icon kpi-icon--purple">
@@ -104,25 +137,28 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
           </div>
 
           <div class="panel" #timelineCard>
-            <div class="panel-header">
+            <div class="panel-header panel-header--toggle" (click)="timelineExpanded.set(!timelineExpanded())">
               <h2>Atividades recentes</h2>
+              <svg class="tl-chevron" [class.tl-chevron--open]="timelineExpanded()" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
-            <div class="tl">
-              @for (ev of timeline(); track ev.id) {
-                <div class="tl-item">
-                  <div class="tl-dot" [style.background]="getEventColor(ev.tipo)">
-                    <span>{{ getEventIcon(ev.tipo) }}</span>
+            @if (timelineExpanded()) {
+              <div class="tl">
+                @for (ev of timeline(); track ev.id) {
+                  <div class="tl-item">
+                    <div class="tl-dot" [style.background]="getEventColor(ev.tipo)">
+                      <span>{{ getEventIcon(ev.tipo) }}</span>
+                    </div>
+                    <div class="tl-body">
+                      <p class="tl-desc">{{ ev.descricao }}</p>
+                      <span class="tl-time">{{ timeAgo(ev.criadoEm) }}</span>
+                    </div>
                   </div>
-                  <div class="tl-body">
-                    <p class="tl-desc">{{ ev.descricao }}</p>
-                    <span class="tl-time">{{ timeAgo(ev.criadoEm) }}</span>
-                  </div>
-                </div>
-              }
-              @if (timeline().length === 0) {
-                <div class="tl-empty">Nenhuma atividade recente</div>
-              }
-            </div>
+                }
+                @if (timeline().length === 0) {
+                  <div class="tl-empty">Nenhuma atividade recente</div>
+                }
+              </div>
+            }
           </div>
         </div>
       }
@@ -211,9 +247,112 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
       box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
     }
 
+    .dash-header { position: relative; }
+
+    .notif-panel {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 8px;
+      width: 360px;
+      max-height: 400px;
+      background: var(--clx-card-bg);
+      border: 1px solid var(--clx-border);
+      border-radius: var(--clx-radius);
+      box-shadow: var(--clx-shadow-xl);
+      z-index: 200;
+      overflow: hidden;
+    }
+
+    .notif-panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid var(--clx-border);
+    }
+
+    .notif-panel-header h3 {
+      font-size: 0.88rem;
+      font-weight: 650;
+      color: var(--clx-text);
+    }
+
+    .notif-count {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: var(--clx-radius-full);
+      background: var(--clx-accent-muted);
+      color: var(--clx-accent);
+    }
+
+    .notif-list {
+      max-height: 340px;
+      overflow-y: auto;
+      padding: 6px 0;
+    }
+
+    .notif-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 18px;
+      transition: background var(--clx-transition-fast);
+    }
+
+    .notif-item:hover {
+      background: color-mix(in srgb, var(--clx-accent) 5%, transparent);
+    }
+
+    .notif-item--unread {
+      background: color-mix(in srgb, var(--clx-accent) 4%, transparent);
+    }
+
+    .notif-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--clx-radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+    }
+
+    .notif-icon--AgendamentoCriado { background: var(--clx-success-muted); color: var(--clx-success); }
+    .notif-icon--AgendamentoCancelado { background: var(--clx-error-muted); color: var(--clx-error); }
+    .notif-icon--AgendamentoRemarcado { background: var(--clx-amber-muted); color: var(--clx-amber); }
+    .notif-icon--PacienteCriado { background: var(--clx-success-muted); color: var(--clx-success); }
+    .notif-icon--PacienteEditado { background: var(--clx-accent-muted); color: var(--clx-accent); }
+    .notif-icon--NotificacaoEnviada { background: var(--clx-accent-muted); color: var(--clx-accent); }
+
+    .notif-body { flex: 1; min-width: 0; }
+
+    .notif-msg {
+      font-size: 0.8rem;
+      color: var(--clx-text);
+      line-height: 1.4;
+      margin: 0;
+    }
+
+    .notif-time {
+      font-size: 0.68rem;
+      color: var(--clx-text-muted);
+    }
+
+    .notif-empty {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--clx-text-muted);
+      font-size: 0.82rem;
+    }
+
+    .dash-featured { margin-bottom: 16px; }
+
     .kpi-grid {
       display: grid;
-      grid-template-columns: 2fr 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 16px;
       margin-bottom: 24px;
     }
@@ -273,6 +412,7 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
     }
 
     .kpi--featured .kpi-value { color: var(--clx-text-light); }
+    .kpi-value--money { font-size: 1.5rem; }
 
     .kpi-details {
       display: flex;
@@ -287,7 +427,7 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
     .kpi-item-time { color: var(--clx-accent-hover); font-weight: 600; }
     .kpi-empty { font-size: 0.76rem; color: rgba(250, 250, 249, 0.35); }
 
-    .dash-bottom-grid { display: grid; grid-template-columns: 5fr 4fr; gap: 16px; }
+    .dash-bottom-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }
 
     .panel {
       background: var(--clx-card-bg);
@@ -304,6 +444,11 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
     }
 
     .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .panel-header--toggle { cursor: pointer; margin-bottom: 0; user-select: none; }
+    .panel-header--toggle:hover { opacity: 0.8; }
+
+    .tl-chevron { color: var(--clx-text-muted); transition: transform var(--clx-transition-base); flex-shrink: 0; }
+    .tl-chevron--open { transform: rotate(180deg); }
 
     .panel-header h2 {
       font-size: 0.92rem;
@@ -326,9 +471,27 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
       letter-spacing: 0.03em;
     }
 
-    .chart-wrap { height: 280px; }
+    .chart-wrap { position: relative; height: 260px; }
+    .apex-chart { width: 100%; }
 
-    .tl { display: flex; flex-direction: column; position: relative; }
+    :host ::ng-deep .apexcharts-tooltip {
+      background: #c5d4e8 !important;
+      border: 1px solid rgba(20, 42, 85, 0.18) !important;
+      border-radius: 10px !important;
+      box-shadow: 0 4px 16px rgba(28, 55, 110, 0.07) !important;
+      color: #0a1424 !important;
+    }
+    :host ::ng-deep .apexcharts-tooltip-title {
+      background: #b8c9e0 !important;
+      border-bottom: 1px solid rgba(20, 42, 85, 0.18) !important;
+      color: #0a1424 !important;
+      font-weight: 600 !important;
+    }
+    :host ::ng-deep .apexcharts-legend-text {
+      color: #2f4260 !important;
+    }
+
+    .tl { display: flex; flex-direction: column; position: relative; margin-top: 16px; }
     .tl::before {
       content: '';
       position: absolute;
@@ -379,12 +542,18 @@ import { DashboardService, EventoDto, AgendamentoDto, OcupacaoDto } from '../../
     }
     @media (max-width: 540px) {
       .kpi-grid { grid-template-columns: 1fr; }
+      .kpi-value { font-size: 1.6rem; }
+      .chart-wrap { height: auto; }
+      .apex-chart { min-height: 150px; }
+      .panel { padding: 16px; }
+      .dash-header h1 { font-size: 1.2rem; }
     }
   `],
 })
-export class DashboardPageComponent implements OnInit, AfterViewInit {
+export class DashboardPageComponent implements OnInit, OnDestroy {
   private dashboardService = inject(DashboardService);
-  private toastService = inject(ToastService);
+  private zone = inject(NgZone);
+  private injector = inject(Injector);
 
   @ViewChild('cardsGrid', { read: ElementRef }) cardsGridRef?: ElementRef;
   @ViewChild('apexChart', { read: ElementRef }) apexChartRef?: ElementRef;
@@ -396,39 +565,38 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
   notificacoesPendentes = signal(0);
   consultasHojeLista = signal<AgendamentoDto[]>([]);
   timeline = signal<EventoDto[]>([]);
-  ocupacao = signal<OcupacaoDto[]>([]);
+  ocupacaoSemana = signal<OcupacaoDto[]>([]);
+  notifPanelOpen = signal(false);
+  timelineExpanded = signal(false);
 
   private chartInstance: any = null;
+  private destroyed = false;
 
   ngOnInit() {
     this.carregarDados();
   }
 
-  ngAfterViewInit() {
-    requestAnimationFrame(() => {
-      if (!this.loading()) {
-        this.animarCards();
-        this.iniciarApexChart();
-      }
-    });
+  ngOnDestroy() {
+    this.destroyed = true;
+    try {
+      this.chartInstance?.destroy?.();
+    } catch { /* ignore */ }
+    this.chartInstance = null;
   }
 
   private carregarDados() {
     this.loading.set(true);
     this.dashboardService.getDashboard().subscribe({
       next: (data) => {
+        // Valores finais de imediato (evita KPI “zerado/invisível” por animação)
         this.consultasHoje.set(data.consultasHoje);
         this.proximos7Dias.set(data.proximos7Dias);
         this.faturamentoMes.set(data.faturamentoMes);
         this.notificacoesPendentes.set(data.notificacoesPendentes);
-        this.consultasHojeLista.set(data.consultasHojeLista);
-        this.ocupacao.set(data.ocupacao);
+        this.consultasHojeLista.set(data.consultasHojeLista ?? []);
+        this.ocupacaoSemana.set(data.ocupacaoSemana ?? []);
         this.loading.set(false);
-        requestAnimationFrame(() => {
-          this.animarCountUp();
-          this.animarCards();
-          this.iniciarApexChart();
-        });
+        this.scheduleUiReady();
       },
       error: () => {
         this.consultasHoje.set(0);
@@ -436,73 +604,124 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
         this.faturamentoMes.set(0);
         this.notificacoesPendentes.set(0);
         this.consultasHojeLista.set([]);
-        this.ocupacao.set([]);
+        this.ocupacaoSemana.set([]);
         this.loading.set(false);
+        this.scheduleUiReady();
       },
     });
     this.dashboardService.getTimeline().subscribe({
-      next: (data) => this.timeline.set(data),
+      next: (data) => this.timeline.set(data ?? []),
       error: () => this.timeline.set([]),
     });
   }
 
-  private animarCountUp() {
-    const alvos = [
-      { s: this.consultasHoje, v: this.consultasHoje() },
-      { s: this.proximos7Dias, v: this.proximos7Dias() },
-      { s: this.faturamentoMes, v: this.faturamentoMes() },
-      { s: this.notificacoesPendentes, v: this.notificacoesPendentes() },
-    ];
-    alvos.forEach(({ s, v }) => {
-      const obj = { val: 0 };
-      gsap.to(obj, {
-        val: v,
-        duration: 1.2,
-        ease: 'power3.out',
-        onUpdate: () => s.set(Math.round(obj.val)),
+  /** Roda após o DOM do @if (!loading) existir de verdade. */
+  private scheduleUiReady() {
+    afterNextRender(() => {
+      if (this.destroyed) return;
+      this.zone.runOutsideAngular(() => {
+        this.animarCards();
+        void this.iniciarApexChart();
       });
-    });
+    }, { injector: this.injector });
   }
 
   private animarCards() {
-    if (!this.cardsGridRef) return;
-    const cards = this.cardsGridRef.nativeElement.querySelectorAll('.card');
-    gsap.fromTo(cards,
-      { opacity: 0, y: 30, scale: 0.95 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.1, ease: 'power2.out' }
+    const cards = document.querySelectorAll<HTMLElement>('.dashboard .kpi, .dashboard .panel');
+    if (!cards.length) return;
+
+    // Limpa animações anteriores (navegação SPA)
+    gsap.killTweensOf(cards);
+
+    gsap.fromTo(
+      cards,
+      { opacity: 0.01, y: 16 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.4,
+        stagger: 0.06,
+        ease: 'power2.out',
+        overwrite: true,
+        onComplete: () => {
+          // Nunca deixar cards “presos” em opacity 0
+          gsap.set(cards, { clearProps: 'opacity,transform' });
+        },
+      }
     );
+
+    // Rede de segurança
+    setTimeout(() => {
+      cards.forEach((el) => {
+        if (getComputedStyle(el).opacity === '0') {
+          gsap.set(el, { opacity: 1, y: 0, clearProps: 'opacity,transform' });
+        }
+      });
+    }, 800);
   }
 
   private async iniciarApexChart() {
-    if (!this.apexChartRef || this.ocupacao().length === 0) return;
+    // ViewChild só existe após loading=false + afterNextRender
+    await new Promise((r) => setTimeout(r, 0));
+    if (this.destroyed) return;
+
+    let host = this.apexChartRef?.nativeElement as HTMLElement | undefined;
+    if (!host) {
+      host = document.querySelector('.dashboard .apex-chart') as HTMLElement | null ?? undefined;
+    }
+    if (!host || this.ocupacaoSemana().length === 0) return;
+
+    try {
+      this.chartInstance?.destroy?.();
+    } catch { /* ignore */ }
+    this.chartInstance = null;
+    host.innerHTML = '';
+
     const ApexCharts = (await import('apexcharts')).default;
     const dias = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
-    const categories = this.ocupacao().map(o => dias.includes(o.dia) ? o.dia.substring(0, 3) : o.dia.substring(0, 3));
-    const totals = this.ocupacao().map(o => o.total);
-    const realizados = this.ocupacao().map(o => o.realizados || 0);
+    const categories = this.ocupacaoSemana().map(o => dias.includes(o.dia) ? o.dia.substring(0, 3) : o.dia.substring(0, 3));
+    const totals = this.ocupacaoSemana().map(o => o.total);
+    const realizados = this.ocupacaoSemana().map(o => o.realizados || 0);
+
+    const maxVal = Math.max(...totals, 5);
 
     const options = {
-      chart: { type: 'bar', height: 300, stacked: true, toolbar: { show: false } },
+      chart: {
+        type: 'bar',
+        height: 220,
+        stacked: true,
+        toolbar: { show: false },
+        fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
+        background: 'transparent',
+        animations: { enabled: true, speed: 400 },
+      },
       series: [
         { name: 'Realizados', data: realizados },
-        { name: 'Total', data: totals.map((t: number, i: number) => t - (realizados[i] || 0)) },
+        { name: 'Restantes', data: totals.map((t: number, i: number) => t - (realizados[i] || 0)) },
       ],
-      xaxis: { categories, labels: { style: { colors: '#94a3b8' } } },
-      yaxis: { labels: { style: { colors: '#94a3b8' } } },
-      colors: ['#14b8a6', '#1e293b'],
-      legend: { labels: { colors: '#94a3b8' } },
-      grid: { borderColor: '#334155' },
+      xaxis: {
+        categories,
+        labels: { style: { colors: '#2f4260', fontSize: '0.75rem', fontWeight: '500' } },
+        axisBorder: { show: false },
+        axisTicks: { show: false },
+      },
+      yaxis: { show: false, max: maxVal },
+      colors: ['#3b6ef5', '#8babff'],
+      legend: { show: false },
+      grid: { show: false },
       plotOptions: {
-        bar: { borderRadius: 4, horizontal: false },
+        bar: { borderRadius: 6, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last', horizontal: false, columnWidth: '50%' },
+      },
+      dataLabels: { enabled: false },
+      tooltip: {
+        theme: 'light',
+        style: { fontSize: '0.8rem' },
+        y: { formatter: (val: number) => `${val} consulta${val !== 1 ? 's' : ''}` },
       },
     };
 
-    if (this.chartInstance) {
-      this.chartInstance.updateOptions(options);
-    } else {
-      this.chartInstance = new ApexCharts(this.apexChartRef.nativeElement, options);
-      await this.chartInstance.render();
-    }
+    this.chartInstance = new ApexCharts(host, options);
+    await this.chartInstance.render();
   }
 
   getEventIcon(tipo: string): string {
@@ -533,7 +752,7 @@ export class DashboardPageComponent implements OnInit, AfterViewInit {
     return new Date(dateStr).toLocaleDateString('pt-BR');
   }
 
-  showDemoToast() {
-    this.toastService.show('info', `Você tem ${this.notificacoesPendentes()} notificações pendentes`);
+  toggleNotifPanel() {
+    this.notifPanelOpen.update(v => !v);
   }
 }

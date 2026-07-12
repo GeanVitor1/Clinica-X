@@ -1,0 +1,13 @@
+**/bin/
+**/obj/
+**/.vs/
+**/*.user
+**/*.suo
+**/stdout.txt
+**/stderr.txt
+**/.git
+**/node_modules
+**/ClinicaX.Tests
+**/*.md
+**/.env
+**/.env.*

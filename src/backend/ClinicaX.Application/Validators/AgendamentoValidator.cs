@@ -9,7 +9,9 @@ public class CreateAgendamentoValidator : AbstractValidator<CreateAgendamentoReq
     {
         RuleFor(x => x.PacienteId).NotEmpty();
         RuleFor(x => x.ServicoId).NotEmpty();
-        RuleFor(x => x.DataHoraInicio).GreaterThan(DateTime.UtcNow);
+        RuleFor(x => x.DataHoraInicio).NotEmpty()
+            .Must(d => d.Date >= DateTime.Today.AddDays(-1))
+            .WithMessage("Data do agendamento não pode ser no passado.");
     }
 }
 
@@ -17,7 +19,7 @@ public class RemarcarAgendamentoValidator : AbstractValidator<RemarcarAgendament
 {
     public RemarcarAgendamentoValidator()
     {
-        RuleFor(x => x.DataHoraInicio).GreaterThan(DateTime.UtcNow);
+        RuleFor(x => x.DataHoraInicio).NotEmpty();
     }
 }
 

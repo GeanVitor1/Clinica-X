@@ -27,65 +27,81 @@ import { BtnSubmitComponent, BtnSubmitState } from '../../../shared/components/b
         <app-skeleton variant="card" />
       }
 
-      <div class="timeline">
-        @for (item of registros(); track item.id) {
-          <div class="timeline-item">
-            <div class="timeline-dot"></div>
-            <div class="timeline-card">
-              <div class="card-header">
-                <span class="card-date">{{ item.data | date:'dd/MM/yyyy' }}</span>
-                <div class="card-actions">
-                  <button class="btn-icon" (click)="editarRegistro(item)" title="Editar">✏️</button>
-                  <button class="btn-icon" (click)="excluirRegistro(item)" title="Excluir">🗑️</button>
-                </div>
-              </div>
-              <div class="card-body">
-                @if (item.descricao) {
-                  <div class="field-group">
-                    <label>Descrição</label>
-                    <p>{{ item.descricao }}</p>
+      @if (registros().length > 0) {
+        <div class="panel">
+          <div class="section-hdr">
+            <span>{{ registros().length }} registro{{ registros().length > 1 ? 's' : '' }}</span>
+          </div>
+          <div class="clist">
+            @for (item of registros(); track item.id) {
+              <div class="ccard">
+                <div class="ccard--inner">
+                  <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                    <div>
+                      <div class="ccard--title">{{ item.data | date:'dd/MM/yyyy' }}</div>
+                      <div class="ccard--tags" style="margin-top: 4px; display: flex; gap: 6px;">
+                        @if (item.diagnostico) { <span class="stg stg--positive">Diagnóstico</span> }
+                        @if (item.prescricao) { <span class="stg stg--info">Prescrição</span> }
+                        @if (item.anexos.length) { <span class="stg stg--warn">Anexos ({{ item.anexos.length }})</span> }
+                      </div>
+                    </div>
+                    <div class="card-actions">
+                      <button class="btn-icon" (click)="editarRegistro(item)" title="Editar">✏️</button>
+                      <button class="btn-icon" (click)="excluirRegistro(item)" title="Excluir">🗑️</button>
+                    </div>
                   </div>
-                }
-                @if (item.diagnostico) {
-                  <div class="field-group">
-                    <label>Diagnóstico</label>
-                    <p>{{ item.diagnostico }}</p>
-                  </div>
-                }
-                @if (item.prescricao) {
-                  <div class="field-group">
-                    <label>Prescrição</label>
-                    <p>{{ item.prescricao }}</p>
-                  </div>
-                }
-              </div>
-              @if (item.anexos.length) {
-                <div class="card-anexos">
-                  <label>Anexos</label>
-                  <div class="anexos-list">
-                    @for (anexo of item.anexos; track anexo.id) {
-                      <div class="anexo-item">
-                        <span>📎 {{ anexo.nome }}</span>
-                        <span class="anexo-size">{{ (anexo.tamanho / 1024).toFixed(1) }} KB</span>
-                        <button class="btn-icon btn-icon--small" (click)="excluirAnexo(anexo.id)" title="Remover anexo">✕</button>
+
+                  <div style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px;">
+                    @if (item.descricao) {
+                      <div class="field-group">
+                        <label style="font-size: 0.68rem; font-weight: 600; color: var(--clx-text-tertiary); text-transform: uppercase;">Descrição</label>
+                        <p style="font-size: 0.88rem; color: var(--clx-text-primary); line-height: 1.5; white-space: pre-wrap; margin: 2px 0 0 0;">{{ item.descricao }}</p>
+                      </div>
+                    }
+                    @if (item.diagnostico) {
+                      <div class="field-group">
+                        <label style="font-size: 0.68rem; font-weight: 600; color: var(--clx-text-tertiary); text-transform: uppercase;">Diagnóstico</label>
+                        <p style="font-size: 0.88rem; color: var(--clx-text-primary); line-height: 1.5; white-space: pre-wrap; margin: 2px 0 0 0;">{{ item.diagnostico }}</p>
+                      </div>
+                    }
+                    @if (item.prescricao) {
+                      <div class="field-group">
+                        <label style="font-size: 0.68rem; font-weight: 600; color: var(--clx-text-tertiary); text-transform: uppercase;">Prescrição</label>
+                        <p style="font-size: 0.88rem; color: var(--clx-text-primary); line-height: 1.5; white-space: pre-wrap; margin: 2px 0 0 0;">{{ item.prescricao }}</p>
                       </div>
                     }
                   </div>
+
+                  @if (item.anexos.length) {
+                    <div class="card-anexos" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--clx-border);">
+                      <label style="font-size: 0.68rem; font-weight: 600; color: var(--clx-text-tertiary); text-transform: uppercase; display: block; margin-bottom: 8px;">Anexos</label>
+                      <div class="anexos-list" style="display: flex; flex-direction: column; gap: 6px;">
+                        @for (anexo of item.anexos; track anexo.id) {
+                          <div class="anexo-item" style="display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: var(--clx-text-primary); padding: 8px 10px; background: var(--clx-surface-2); border-radius: var(--clx-radius-sm);">
+                            <span>📎 {{ anexo.nome }}</span>
+                            <span class="anexo-size" style="color: var(--clx-text-tertiary); font-size: 0.75rem;">{{ (anexo.tamanho / 1024).toFixed(1) }} KB</span>
+                            <button type="button" class="btn-icon btn-icon--small" (click)="baixarAnexo(anexo.id, anexo.nome)" title="Baixar anexo">⬇</button>
+                            <button type="button" class="btn-icon btn-icon--small" (click)="excluirAnexo(anexo.id)" title="Remover anexo">✕</button>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
                 </div>
-              }
-            </div>
+              </div>
+            }
           </div>
-        } @empty {
-          @if (!loading()) {
-            <app-empty-state
-              icon="prontuario"
-              message="Nenhum registro de prontuário ainda."
-              actionLabel="Novo registro"
-              (action)="abrirNovoRegistro()"
-            />
-          }
+        </div>
+      } @else {
+        @if (!loading()) {
+          <app-empty-state
+            icon="prontuario"
+            message="Nenhum registro de prontuário ainda."
+            actionLabel="Novo registro"
+            (action)="abrirNovoRegistro()"
+          />
         }
-      </div>
+      }
     </div>
 
     @if (showForm) {
@@ -183,58 +199,83 @@ import { BtnSubmitComponent, BtnSubmitState } from '../../../shared/components/b
     }
     .btn-secondary:hover { border-color: var(--clx-text-tertiary); color: var(--clx-text-primary); }
 
-    .timeline { position: relative; padding-left: 36px; }
-    .timeline::before {
-      content: '';
-      position: absolute;
-      left: 14px;
-      top: 0;
-      bottom: 0;
-      width: 1.5px;
-      background: var(--clx-border);
-    }
-
-    .timeline-item { position: relative; margin-bottom: 28px; }
-
-    .timeline-dot {
-      position: absolute;
-      left: -26px;
-      top: 14px;
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: var(--clx-accent);
-      border: 3px solid var(--clx-surface-2);
-      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
-    }
-
-    .timeline-card {
-      padding: 20px;
-      background: var(--clx-surface-1);
+    /* ── Panel / Card List ── */
+    .panel {
+      background: var(--clx-card-bg, var(--clx-surface-1));
       border: 1px solid var(--clx-border);
-      border-radius: var(--clx-radius-lg);
-      transition: border-color var(--clx-transition-base);
+      border-radius: var(--clx-radius-2xl, 16px);
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--clx-shadow-card, 0 2px 12px rgba(0,0,0,0.03));
     }
-    .timeline-card:hover { border-color: var(--clx-border-strong); }
-
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-    .card-date { font-size: 0.8rem; font-weight: 650; color: var(--clx-accent); }
-    .card-body { display: flex; flex-direction: column; gap: 14px; }
-
-    .field-group label {
-      font-size: 0.68rem;
-      font-weight: 600;
-      color: var(--clx-text-tertiary);
+    .section-hdr {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .section-hdr span {
+      font-size: 0.75rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      display: block;
-      margin-bottom: 4px;
+      letter-spacing: 0.06em;
+      color: var(--clx-text-muted);
     }
-    .field-group p { font-size: 0.88rem; color: var(--clx-text-primary); line-height: 1.55; white-space: pre-wrap; }
+    .clist {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .ccard {
+      background: var(--clx-card-bg, var(--clx-surface-1));
+      border: 1px solid var(--clx-border);
+      border-radius: var(--clx-radius-xl, 12px);
+      box-shadow: var(--clx-shadow-card, 0 2px 12px rgba(0,0,0,0.03));
+      transition: all .2s;
+      overflow: hidden;
+    }
+    .ccard:hover {
+      box-shadow: var(--clx-shadow-card-hover, 0 4px 16px rgba(0,0,0,0.06));
+      border-color: color-mix(in srgb, var(--clx-accent) 30%, transparent);
+    }
+    .ccard--inner {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ccard--title {
+      font-weight: 700;
+      font-size: 0.925rem;
+      letter-spacing: -0.01em;
+      color: var(--clx-text-primary);
+    }
+    .ccard--tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+
+    /* ── Status tags ── */
+    .stg {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: var(--clx-radius-badge, 6px);
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      line-height: 1.4;
+      text-transform: capitalize;
+    }
+    .stg--positive { background: var(--clx-success-muted, rgba(16, 185, 129, 0.15)); color: var(--clx-success, #10b981); }
+    .stg--info { background: var(--clx-info-muted, rgba(59, 130, 246, 0.15)); color: var(--clx-info, #3b82f6); }
+    .stg--warn { background: var(--clx-warning-muted, rgba(245, 158, 11, 0.15)); color: var(--clx-warning, #f59e0b); }
+    .stg--neutral  { background: var(--clx-bg-alt, #f1f5f9); color: var(--clx-text-muted, #64748b); }
 
     .card-anexos { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--clx-border); }
-    .card-anexos label { font-size: 0.68rem; font-weight: 600; color: var(--clx-text-tertiary); text-transform: uppercase; display: block; margin-bottom: 8px; letter-spacing: 0.05em; }
-
     .anexos-list { display: flex; flex-direction: column; gap: 6px; }
     .anexo-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem; color: var(--clx-text-primary); padding: 8px 10px; background: var(--clx-surface-2); border-radius: var(--clx-radius-sm); }
     .anexo-size { color: var(--clx-text-tertiary); font-size: 0.75rem; }
@@ -324,6 +365,27 @@ import { BtnSubmitComponent, BtnSubmitState } from '../../../shared/components/b
     }
     .btn-icon:hover { background: var(--clx-surface-3); color: var(--clx-text-primary); }
     .btn-icon--small { font-size: 0.68rem; padding: 3px; }
+
+    @media (max-width: 700px) {
+      .page { padding: 0 12px 32px; }
+      .page-header { flex-direction: column; gap: 10px; }
+      .page-header h1 { font-size: 1.2rem; }
+      .ccard--inner { padding: 14px; }
+      .ccard--title { font-size: 0.85rem; }
+      .panel { padding: 16px; }
+      .modal { width: 95%; max-width: none; padding: 20px; }
+      .modal--wide { max-width: none; }
+      .field-row { flex-direction: column; gap: 8px; }
+      .form-section { padding: 10px 10px 4px; }
+      .form-actions { flex-direction: column; gap: 8px; }
+      .form-actions button { width: 100%; }
+    }
+    @media (max-width: 450px) {
+      .page-header h1 { font-size: 1.1rem; }
+      .ccard--inner { padding: 12px; }
+      .anexo-item { flex-wrap: wrap; gap: 4px; }
+      .anexo-item span:first-child { flex: 1; min-width: 0; }
+    }
   `],
 })
 export class ProntuarioPacienteComponent implements OnInit {
@@ -505,17 +567,59 @@ export class ProntuarioPacienteComponent implements OnInit {
         next: (novo) => {
           this.saveState.set('done');
           this.registros.update(list => [novo, ...list]);
-          this.selectedFiles.forEach(file => {
-            this.prontuarioService.uploadAnexo(novo.id, file).subscribe();
-          });
+          const files = [...this.selectedFiles];
           this.selectedFiles = [];
-          setTimeout(() => {
-            this.saveState.set('idle');
-            this.showForm = false;
-          }, 1000);
+          if (files.length === 0) {
+            setTimeout(() => {
+              this.saveState.set('idle');
+              this.showForm = false;
+            }, 1000);
+            return;
+          }
+          let done = 0;
+          let failed = 0;
+          files.forEach((file) => {
+            this.prontuarioService.uploadAnexo(novo.id, file).subscribe({
+              next: () => {
+                done++;
+                if (done + failed === files.length) {
+                  if (failed > 0) {
+                    this.uploadError.set(`${failed} anexo(s) falharam no envio.`);
+                  }
+                  this.carregarProntuario();
+                  setTimeout(() => {
+                    this.saveState.set('idle');
+                    this.showForm = false;
+                  }, 800);
+                }
+              },
+              error: () => {
+                failed++;
+                if (done + failed === files.length) {
+                  this.uploadError.set(`${failed} anexo(s) falharam no envio.`);
+                  this.carregarProntuario();
+                  this.saveState.set('idle');
+                }
+              },
+            });
+          });
         },
         error: () => { this.saveState.set('idle'); this.uploadError.set('Erro ao salvar registro.'); },
       });
     }
+  }
+
+  baixarAnexo(id: string, nome: string) {
+    this.prontuarioService.downloadAnexo(id).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = nome || 'anexo';
+        a.click();
+        URL.revokeObjectURL(url);
+      },
+      error: () => this.uploadError.set('Falha ao baixar anexo.'),
+    });
   }
 }

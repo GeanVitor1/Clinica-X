@@ -295,14 +295,14 @@ export class HowItWorksComponent implements OnInit, AfterViewInit {
 
     if (steps?.length) {
       ScrollTrigger.batch(steps as any, {
-        start: 'top 88%',
+        start: 'top 94%',
         onEnter: (batch) =>
           gsap.to(batch, {
             opacity: 1,
             y: 0,
-            duration: 0.7,
-            stagger: 0.14,
-            ease: 'power3.out',
+            duration: 0.16,
+            stagger: 0.025,
+            ease: 'power2.out',
           }),
         once: true,
       });

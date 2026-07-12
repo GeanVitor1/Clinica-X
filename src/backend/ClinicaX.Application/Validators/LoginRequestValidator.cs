@@ -26,6 +26,10 @@ public class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequ
     {
         RuleFor(x => x.Email).NotEmpty().EmailAddress();
         RuleFor(x => x.Token).NotEmpty();
-        RuleFor(x => x.NovaSenha).NotEmpty().MinimumLength(4).MaximumLength(100);
+        RuleFor(x => x.NovaSenha).NotEmpty().MinimumLength(8).MaximumLength(100)
+            .Matches("[A-Z]").WithMessage("Senha deve conter letra maiúscula.")
+            .Matches("[a-z]").WithMessage("Senha deve conter letra minúscula.")
+            .Matches("[0-9]").WithMessage("Senha deve conter número.")
+            .Matches("[^a-zA-Z0-9]").WithMessage("Senha deve conter caractere especial.");
     }
 }

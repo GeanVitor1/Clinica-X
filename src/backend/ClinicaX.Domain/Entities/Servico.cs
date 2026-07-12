@@ -8,4 +8,6 @@ public class Servico : BaseEntity
     public int DuracaoMin { get; set; }
     public decimal Valor { get; set; }
     public string? Cor { get; set; }
+    /// <summary>Percentual de comissão do profissional (0–100).</summary>
+    public decimal PercentualComissao { get; set; }
 }

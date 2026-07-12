@@ -105,42 +105,40 @@ import gsap from 'gsap';
           </div>
         </div>
 
-        @if (showToast()) {
-          <div class="notif-pop">
-            <div class="notif-pop-inner">
-              <div class="np-bell">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8 4a2 2 0 0 1-4 0"/></svg>
-              </div>
-              <div>
-                <strong>Lembrete</strong>
-                <small>Maria Silva • 09:00</small>
-              </div>
+        <div class="notif-pop" [class.notif-pop--hidden]="!showToast()" aria-hidden="true">
+          <div class="notif-pop-inner">
+            <div class="np-bell">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8 4a2 2 0 0 1-4 0"/></svg>
+            </div>
+            <div>
+              <strong>Lembrete</strong>
+              <small>Maria Silva • 09:00</small>
             </div>
           </div>
-        }
+        </div>
       </div>
 
-      @if (showInstallBanner()) {
-        <div class="install-card">
-          <div class="ic-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          </div>
-          <div class="ic-text">
-            <strong>Instalar ClinicaX</strong>
-            <small>Adicione à tela inicial</small>
-          </div>
-          <button class="ic-btn" type="button" (click)="installApp()">Instalar</button>
+      <!-- Always in flow (hidden visually) so install doesn't shrink the card -->
+      <div class="install-card" [class.install-card--hidden]="!showInstallBanner()">
+        <div class="ic-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </div>
-      }
+        <div class="ic-text">
+          <strong>Instalar ClinicaX</strong>
+          <small>Adicione à tela inicial</small>
+        </div>
+        <button class="ic-btn" type="button" (click)="installApp()">Instalar</button>
+      </div>
     </div>
   `,
   styles: [`
+    :host { display: block; width: 100%; }
     .demo-pwa {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 20px;
-      padding: 8px 0 4px;
+      gap: 16px;
+      padding: 4px 0;
       position: relative;
     }
 
@@ -149,7 +147,6 @@ import gsap from 'gsap';
       display: flex;
       align-items: center;
       justify-content: center;
-      min-height: 480px;
       width: 100%;
     }
 
@@ -196,13 +193,13 @@ import gsap from 'gsap';
     .device-vol-up { top: 148px; }
     .device-vol-down { top: 194px; }
 
-    /* Phone body — ~390×844 proportion scaled */
+    /* Phone body — natural size (no reserved empty space below) */
     .device-body {
       position: relative;
-      width: 248px;
+      width: 220px;
       background: linear-gradient(160deg, #3e3e44 0%, #2c2c32 25%, #1a1a1e 55%, #2a2a30 85%, #404048 100%);
-      border-radius: 42px;
-      padding: 9px;
+      border-radius: 38px;
+      padding: 8px;
       box-shadow:
         0 0 0 1px rgba(255, 255, 255, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.14),
@@ -211,7 +208,7 @@ import gsap from 'gsap';
 
     .device-frame {
       position: relative;
-      border-radius: 34px;
+      border-radius: 32px;
       overflow: hidden;
       background: #000;
     }
@@ -219,11 +216,9 @@ import gsap from 'gsap';
     .device-screen {
       position: relative;
       background: linear-gradient(180deg, #f4f2f8 0%, #f7f5f2 50%, #faf9f7 100%);
-      border-radius: 34px;
+      border-radius: 32px;
       overflow: hidden;
-      /* aspect ~ 9:19.5 */
-      aspect-ratio: 9 / 19.5;
-      min-height: 0;
+      aspect-ratio: 9 / 17.2;
       height: auto;
       box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
     }
@@ -490,6 +485,12 @@ import gsap from 'gsap';
       box-shadow: var(--clx-shadow-card);
       border: 1px solid var(--clx-border, #e8e4de);
       width: min(100%, 280px);
+      transition: opacity 220ms ease;
+    }
+    .install-card--hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
     }
     .ic-icon {
       width: 40px;
@@ -525,10 +526,17 @@ import gsap from 'gsap';
 
     .notif-pop {
       position: absolute;
-      top: 24px;
-      left: calc(50% + 130px);
+      top: 20px;
+      left: calc(50% + 112px);
       z-index: 20;
       animation: popIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: opacity 200ms ease;
+    }
+    .notif-pop--hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      animation: none;
     }
     .notif-pop-inner {
       display: flex;
@@ -565,11 +573,10 @@ import gsap from 'gsap';
         position: relative;
         left: auto;
         top: auto;
-        margin-top: 12px;
+        margin-top: 10px;
       }
       .device-scene {
         flex-direction: column;
-        min-height: auto;
       }
     }
   `],

@@ -23,11 +23,14 @@ public static class NotificacaoEndpoints
             return Results.Ok(new { count });
         });
 
-        group.MapGet("/paciente/{pacienteId:guid}", async (Guid pacienteId, INotificacaoRepository repo) =>
+        group.MapGet("/paciente/{pacienteId:guid}", async (Guid pacienteId, INotificacaoRepository repo, IPacienteRepository pacRepo, HttpContext ctx) =>
         {
+            var clinicaId = GetClinicaId(ctx);
+            var pac = await pacRepo.GetByIdAndClinicaAsync(clinicaId, pacienteId);
+            if (pac is null) return Results.NotFound();
             var list = await repo.GetByPacienteAsync(pacienteId);
-            return Results.Ok(list);
+            // Só devolve notificações cujo ClinicaId bate
+            return Results.Ok(list.Where(n => n.ClinicaId == clinicaId));
         });
     }
-
 }

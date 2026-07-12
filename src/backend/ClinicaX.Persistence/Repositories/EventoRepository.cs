@@ -26,4 +26,10 @@ public class EventoRepository : IEventoRepository
             .Where(e => e.PacienteId == pacienteId)
             .OrderByDescending(e => e.CriadoEm)
             .ToListAsync(ct);
+
+    public async Task<List<Evento>> GetByPacienteAndClinicaAsync(Guid clinicaId, Guid pacienteId, CancellationToken ct = default)
+        => await _context.Set<Evento>()
+            .Where(e => e.ClinicaId == clinicaId && e.PacienteId == pacienteId)
+            .OrderByDescending(e => e.CriadoEm)
+            .ToListAsync(ct);
 }

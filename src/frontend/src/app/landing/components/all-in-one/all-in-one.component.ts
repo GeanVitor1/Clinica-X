@@ -1,7 +1,6 @@
 import { Component, afterNextRender, ElementRef, viewChild, inject } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import gsap from 'gsap';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { AnimateOnScrollDirective } from '../../directives/animate-on-scroll.directive';
 
 interface AioItem {
@@ -129,10 +128,10 @@ interface AioItem {
         0 0 0 1px rgba(255, 255, 255, 0.18) inset,
         0 4px 14px rgba(20, 42, 85, 0.12);
       transition:
-        transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-        box-shadow 280ms ease,
-        border-color 240ms ease,
-        background 240ms ease;
+        transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+        box-shadow 150ms ease,
+        border-color 140ms ease,
+        background 140ms ease;
     }
     .aio-card:hover .aio-card-inner {
       transform: translateY(-3px);
@@ -154,11 +153,11 @@ interface AioItem {
       justify-content: center;
       color: var(--card-color);
       transition:
-        transform 280ms cubic-bezier(0.16, 1, 0.3, 1),
-        background 240ms ease,
-        color 240ms ease,
-        box-shadow 280ms ease,
-        border-color 240ms ease;
+        transform 150ms cubic-bezier(0.16, 1, 0.3, 1),
+        background 140ms ease,
+        color 140ms ease,
+        box-shadow 150ms ease,
+        border-color 140ms ease;
       position: relative;
       z-index: 1;
     }
@@ -201,7 +200,7 @@ interface AioItem {
       background: radial-gradient(circle, color-mix(in srgb, var(--card-color) 14%, transparent), transparent 70%);
       pointer-events: none;
       opacity: 0;
-      transition: opacity 300ms ease;
+      transition: opacity 150ms ease;
       transform: translate(-50%, -50%);
     }
     .aio-card:hover .aio-hover-glow {
@@ -311,27 +310,12 @@ export class AllInOneComponent {
   ];
 
   constructor() {
-    gsap.registerPlugin(ScrollTrigger);
-
     afterNextRender(() => {
       const cards = document.querySelectorAll('.aio-card');
       if (!cards.length) return;
 
-      gsap.set(cards, { opacity: 0, y: 24 });
-
-      ScrollTrigger.create({
-        trigger: cards[0].parentElement,
-        start: 'top 82%',
-        onEnter: () => {
-          gsap.to(cards, {
-            opacity: 1,
-            y: 0,
-            duration: 0.5,
-            stagger: 0.03,
-            ease: 'power2.out',
-          });
-        },
-        once: true,
+      import('../../../shared/utils/safe-reveal').then(({ safeRevealOnScroll }) => {
+        safeRevealOnScroll(cards, { y: 6, duration: 0.14, stagger: 0.012, start: 'top 94%' });
       });
 
       cards.forEach((card) => {
