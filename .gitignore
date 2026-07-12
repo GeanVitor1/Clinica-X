@@ -16,3 +16,12 @@ api-out.txt
 api-err.txt
 *.swp
 .idea/
+
+# Runtime data (SQLite / JWT auto)
+src/backend/**/data/
+**/clinicax.db*
+**/jwt.key
+*-smoke.txt
+stdout*.txt
+stderr*.txt
+
