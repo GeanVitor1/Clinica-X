@@ -21,7 +21,25 @@ public static class SeedData
         var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
         var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("SeedData");
 
-        await context.Database.MigrateAsync();
+        // SQL Server: migrations. SQLite zero-config: EnsureCreated (schema do model, sem scripts SQL Server).
+        try
+        {
+            if (context.Database.IsSqlite())
+            {
+                logger.LogInformation("Provider SQLite → EnsureCreated (deploy zero-config).");
+                await context.Database.EnsureCreatedAsync();
+            }
+            else
+            {
+                logger.LogInformation("Provider SQL Server → ApplyMigrations.");
+                await context.Database.MigrateAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Falha ao criar/migrar banco. Tentando EnsureCreated como fallback…");
+            await context.Database.EnsureCreatedAsync();
+        }
 
         if (!await roleManager.RoleExistsAsync("ClinicaOwner"))
             await roleManager.CreateAsync(new IdentityRole("ClinicaOwner"));

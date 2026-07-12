@@ -74,10 +74,8 @@ Guia completo: **[DEPLOY.md](./DEPLOY.md)**
 | API | Railway (Docker) | `src/backend` |
 | Frontend | Vercel | `src/frontend` |
 
-Variáveis essenciais:
-
-- Railway: `ConnectionStrings__DefaultConnection`, `Jwt__Key`, `Cors__Origins__0`
-- Vercel: `API_URL=https://sua-api.up.railway.app`
+**Railway API = zero variáveis** (SQLite + JWT automático + conta demo).  
+**Vercel:** só `API_URL=https://sua-api.up.railway.app`
 
 ---
 

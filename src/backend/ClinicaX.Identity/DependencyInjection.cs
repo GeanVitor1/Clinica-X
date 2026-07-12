@@ -15,7 +15,8 @@ public static class DependencyInjection
         var jwtKey = configuration["Jwt:Key"];
         if (string.IsNullOrWhiteSpace(jwtKey) || jwtKey.Length < 32)
             throw new InvalidOperationException(
-                "Jwt:Key deve ser configurada com pelo menos 32 caracteres (variável de ambiente Jwt__Key ou User Secrets).");
+                "Jwt:Key inválida. Em produção o RuntimeBootstrap gera data/jwt.key automaticamente; " +
+                "em Development use appsettings.Development.json.");
 
         services.AddAuthentication(options =>
         {

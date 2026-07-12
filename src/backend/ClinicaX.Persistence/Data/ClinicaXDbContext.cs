@@ -100,7 +100,8 @@ public class ClinicaXDbContext : IdentityDbContext<ClinicaOwner>, IUnitOfWork
             entity.Property(a => a.Sala).HasMaxLength(100);
             entity.Property(a => a.Equipamento).HasMaxLength(100);
             entity.Property(a => a.TokenConfirmacao).HasMaxLength(64);
-            entity.HasIndex(a => a.TokenConfirmacao).IsUnique().HasFilter("[TokenConfirmacao] IS NOT NULL");
+            // Índice simples (compatível SQLite + SQL Server; tokens null são raros)
+            entity.HasIndex(a => a.TokenConfirmacao);
             entity.Property(a => a.DataHoraInicio).IsRequired();
             entity.Property(a => a.DataHoraFim).IsRequired();
             entity.Property(a => a.Ativo).IsRequired();
